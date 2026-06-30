@@ -589,7 +589,7 @@ const handleDesignComplete = () => {
     alert('주문 제작 신청이 성공적으로 완료되었습니다!');
 
     // 2. 선택된 사이즈 초기화 (필요한 경우)
-    setSelectedSize('기본값'); 
+    setSelectedSize('1x1'); 
 
     // 3. 캔버스 이미지 및 미리보기 URL 초기화
     setPreviewImageUrl(null); 
