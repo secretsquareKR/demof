@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ffffff;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ==========================================================================
+   🔥 모바일 스마트폰 강제 다크모드(웹사이트 어둡게 보기) 원천 차단 영역
+   ========================================================================== */
+
+/* 1. 이미지 및 미리보기 컨테이너 자체를 다크모드 예외로 강제 고정 */
+.force-light-zone,
+.force-light-zone * {
+  /* 시스템이나 브라우저가 이 영역을 다크모드로 렌더링하는 것을 물리적으로 금지 */
+  color-scheme: light only !important; 
+  
+  /* 스마트폰 브라우저가 임의로 집어넣는 어두운 필터 전면 차단 */
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+/* 2. 기존 img 방어 코드 고도화 */
+@media (prefers-color-scheme: dark) {
+  img {
+    color-scheme: light only !important;
+    filter: none !important;
+    mix-blend-mode: normal !important;
+  }
+}

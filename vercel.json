@@ -1,0 +1,10 @@
+{
+  "crons": [],
+  "rateLimits": {
+    "api-order-limit": {
+      "path": "/api/order",
+      "limit": 5,
+      "window": "1m"
+    }
+  }
+}
