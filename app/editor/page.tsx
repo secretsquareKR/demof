@@ -588,6 +588,19 @@ const handleDesignComplete = () => {
 
     alert('주문 제작 신청이 성공적으로 완료되었습니다!');
 
+    // 2. 선택된 사이즈 초기화 (필요한 경우)
+    setSelectedSize('기본값'); 
+
+    // 3. 캔버스 이미지 및 미리보기 URL 초기화
+    setPreviewImageUrl(null); 
+    
+    // 4. 만약 Fabric.js 캔버스를 사용 중이시라면 캔버스 내부 객체도 싹 비워줍니다.
+    // if (canvasRef.current) {
+    //   canvasRef.current.clear(); // 캔버스 안의 그림/글자 모두 삭제
+    //   // 만약 캔버스 배경색을 새로 지정해야 한다면 지정 (예: canvasRef.current.setBackgroundColor('#fff', canvasRef.current.renderAll.bind(canvasRef.current));)
+    // }
+
+
   } catch (error: unknown) {
     console.error('에러 발생:', error);
     if (error instanceof Error) alert(error.message);
