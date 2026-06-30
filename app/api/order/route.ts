@@ -43,10 +43,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     //console.log("🔥 서버에 수신된 데이터 전체 확인:", body); // 터미널 콘솔에 찍힙니다.
 
-    const { customerName, contact, boardColor, selectedSize, previewImageUrl, orderType } = body;
+    const { customerName, contact, boardColor, selectedSize, previewUrl, orderType } = body;
     
     // 7. [방어선 2] previewUrl이 정상적인지 2차 검증 (null.toString 에러 방지)
-    if (!previewImageUrl || previewImageUrl === 'null') {
+    if (!previewUrl || previewUrl === 'null') {
       return NextResponse.json({ error: '이미지 주소가 비어있거나 올바르지 않습니다.' }, { status: 400 });
     }
     
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
 
     // const { customerName, contact, boardColor, selectedSize, previewUrl, orderType } = await request.json();
 
-    const response = await fetch(previewImageUrl);
+    const response = await fetch(previewUrl);
     const blob = await response.blob();
     // const fileName = `order_${Date.now()}_${Math.random().toString(36).substring(2, 11)}.png`;
     // .toString(36) 대신 안전한 날짜 기반 랜덤 문자열 조합으로 전면 교체
