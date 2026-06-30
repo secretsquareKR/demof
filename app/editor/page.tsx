@@ -31,6 +31,7 @@ const SIZES = [
 
 export default function Editor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  
   const containerRef = useRef<HTMLDivElement>(null);
   const fabricCanvas = useRef<fabric.Canvas | null>(null);
   const uploadedImage = useRef<fabric.FabricImage | null>(null);
@@ -592,11 +593,8 @@ const handleDesignComplete = () => {
     // 3. 캔버스 이미지 및 미리보기 URL 초기화
     setPreviewImageUrl(null); 
     
-    // 4. 만약 Fabric.js 캔버스를 사용 중이시라면 캔버스 내부 객체도 싹 비워줍니다.
-    // if (canvasRef.current) {
-    //   canvasRef.current.clear(); // 캔버스 안의 그림/글자 모두 삭제
-    //   // 만약 캔버스 배경색을 새로 지정해야 한다면 지정 (예: canvasRef.current.setBackgroundColor('#fff', canvasRef.current.renderAll.bind(canvasRef.current));)
-    // }
+    window.location.reload();
+
 
 
   } catch (error: unknown) {
