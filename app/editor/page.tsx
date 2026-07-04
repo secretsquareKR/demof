@@ -176,7 +176,7 @@ export default function Editor() {
 
     canvas.requestRenderAll();
   };
-  
+
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const orderFormRef = useRef<HTMLDivElement>(null);
@@ -196,7 +196,7 @@ export default function Editor() {
     const canvas = new fabric.Canvas(canvasRef.current, {
       width,
       height,
-      backgroundColor: '#faf5ff', // 🎨 캔버스 배경을 아주 연한 파스텔 라벤더 슬레이트로 매칭
+      backgroundColor: '#ffffff', // 
       preserveObjectStacking: true,
       selection: false,
       allowTouchScrolling: true,
