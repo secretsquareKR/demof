@@ -471,10 +471,15 @@ export default function Editor() {
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    const sanitizedValue = value.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, '');
-    if (sanitizedValue.length <= 15) {
-      setOrderData((prev) => ({ ...prev, customerName: sanitizedValue }));
-    }
+  // 💡 천지인 키보드 버그를 방지하기 위해 특수문자/숫자 제한을 해제하고 15자 제한만 유지합니다.
+  if (value.length <= 15) {
+    setOrderData((prev) => ({ ...prev, customerName: value }));
+  }
+  // const value = e.target.value;
+    // const sanitizedValue = value.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, '');
+    // if (sanitizedValue.length <= 15) {
+    //   setOrderData((prev) => ({ ...prev, customerName: sanitizedValue }));
+    // }
   };
 
   const handleContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
