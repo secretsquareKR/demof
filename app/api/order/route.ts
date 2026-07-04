@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     //console.log("🔥 서버에 수신된 데이터 전체 확인:", body); // 터미널 콘솔에 찍힙니다.
 
-    const { customerName, contact, boardColor, selectedSize, previewUrl, orderType } = body;
+    const { customerName, contact, boardColor, selectedSize, previewUrl, orderType, eventCode } = body;
     
     // 7. [방어선 2] previewUrl이 정상적인지 2차 검증 (null.toString 에러 방지)
     if (!previewUrl || previewUrl === 'null') {
@@ -82,7 +82,8 @@ export async function POST(request: Request) {
         board_color: boardColor,
         spec_size: selectedSize,
         preview_image_url: publicUrl,
-        order_type: orderType
+        order_type: orderType,
+        event_code : eventCode
       }]);
 
     if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });

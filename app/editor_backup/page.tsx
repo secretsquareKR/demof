@@ -150,20 +150,19 @@ export default function Editor() {
     const centerX = Math.floor(left + guideW / 2);
     const centerY = Math.floor(top + guideH / 2);
 
-    // 🎨 선택 보조 점선 가이드도 은은한 바이올렛 톤으로 일치화
     const vCenter = new fabric.Line([centerX, top, centerX, top + guideH], {
-      stroke: '#8b5cf6',
+      stroke: '#3b82f6',
       strokeWidth: 1,
-      opacity: 0.35,
+      opacity: 0.3,
       strokeDashArray: [4, 4],
       selectable: false,
       evented: false,
     });
 
     const hCenter = new fabric.Line([left, centerY, left + guideW, centerY], {
-      stroke: '#8b5cf6',
+      stroke: '#3b82f6',
       strokeWidth: 1,
-      opacity: 0.35,
+      opacity: 0.3,
       strokeDashArray: [4, 4],
       selectable: false,
       evented: false,
@@ -176,16 +175,16 @@ export default function Editor() {
 
     canvas.requestRenderAll();
   };
-  
+
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const orderFormRef = useRef<HTMLDivElement>(null);
-
-
-  const handleCanvasObjectModified = () => {
+  
+    const handleCanvasObjectModified = () => {
     setShowOrderForm(false);
     setPreviewImageUrl(null);
   };
+
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
@@ -196,7 +195,7 @@ export default function Editor() {
     const canvas = new fabric.Canvas(canvasRef.current, {
       width,
       height,
-      backgroundColor: '#faf5ff', // 🎨 캔버스 배경을 아주 연한 파스텔 라벤더 슬레이트로 매칭
+      backgroundColor: '#f8fafc',
       preserveObjectStacking: true,
       selection: false,
       allowTouchScrolling: true,
@@ -205,6 +204,7 @@ export default function Editor() {
     fabricCanvas.current = canvas;
     drawGuide(canvas, selectedSpec.cols, selectedSpec.rows);
 
+    
     canvas.on('object:moving', handleCanvasObjectModified);
     canvas.on('object:scaling', handleCanvasObjectModified);
 
@@ -263,8 +263,8 @@ export default function Editor() {
         originY: 'center',
         cornerStyle: 'circle',
         transparentCorners: false,
-        borderColor: '#8b5cf6', // 🎨 조절점 테두리를 바이올렛으로 변경
-        cornerColor: '#8b5cf6', // 🎨 조절점 앵커 서클을 바이올렛으로 변경
+        borderColor: '#2563eb',
+        cornerColor: '#2563eb',
       });
 
       img.scaleToWidth(bounds.width * 0.9);
@@ -329,6 +329,7 @@ export default function Editor() {
   };
 
 
+  // 💡 orderType 기본값을 '주문전'으로 픽스하고 eventCode 상태 추가
   const [orderData, setOrderData] = useState({
     orderType: '주문전',
     customerName: '',
@@ -421,11 +422,6 @@ export default function Editor() {
       return;
     }
 
-    if (orderData.eventCode.trim().length > 8) {
-      alert('이벤트 코드는 최대 8자리까지만 입력 가능합니다.');
-      return;
-    }
-
     const currentPreviewUrl = previewImageUrl; 
     if (!currentPreviewUrl || currentPreviewUrl.includes('null')) {
       alert('이미지 주소가 올바르지 않거나 수정되었습니다. 다시 편집 완료를 눌러주세요.');
@@ -435,6 +431,7 @@ export default function Editor() {
     try {
       setIsSubmitting(true); 
 
+      // 💡 body 데이터에 eventCode 바인딩 추가
       const res = await fetch('/api/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -485,14 +482,6 @@ export default function Editor() {
     }
   };
 
-  // 💡 이벤트 코드 입력 제어 핸들러 (최대 8글자 제한 레이어)
-  const handleEventCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value.length <= 8) {
-      setOrderData((prev) => ({ ...prev, eventCode: value }));
-    }
-  };
-
   const slides = [
     {
       title: '1. 스위치보드 사이즈를 선택해주세요',
@@ -509,7 +498,7 @@ export default function Editor() {
   ];
 
   return (
-    <div className="min-h-screen bg-purple-50/30 px-4 py-6">
+    <div className="min-h-screen bg-slate-50 px-4 py-6">
       {isSubmitting && (
         <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-black/70 px-4 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mb-4"></div>
@@ -531,7 +520,7 @@ export default function Editor() {
             onTouchEnd={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-xl mb-3 font-semibold text-purple-900 tracking-wide">PHOTO KEYCAP GUIDE</div>
+            <div className="text-xl mb-3 font-semibold">PHOTO KEYCAP GUIDE</div>
             <h2 className="text-xl mb-4 font-black text-gray-900">{slides[slideIndex].title}</h2>
             <p className="mb-6 text-sm leading-6 text-gray-600">{slides[slideIndex].desc}</p>
 
@@ -540,7 +529,7 @@ export default function Editor() {
                 <div
                   key={i}
                   className={`h-2 rounded-full transition-all ${
-                    i === slideIndex ? 'w-6 bg-violet-500' : 'w-2 bg-purple-100'
+                    i === slideIndex ? 'w-6 bg-blue-600' : 'w-2 bg-gray-300'
                   }`}
                 />
               ))}
@@ -551,7 +540,7 @@ export default function Editor() {
                 type="button"
                 onClick={() => setSlideIndex((prev) => Math.max(0, prev - 1))}
                 disabled={slideIndex === 0}
-                className="flex-1 rounded-xl border border-purple-100 py-3 font-bold text-gray-500 disabled:opacity-30"
+                className="flex-1 rounded-xl border border-gray-200 py-3 font-bold text-gray-600 disabled:opacity-30"
               >
                 이전
               </button>
@@ -560,7 +549,7 @@ export default function Editor() {
                 <button
                   type="button"
                   onClick={() => setSlideIndex((prev) => prev + 1)}
-                  className="flex-1 rounded-xl bg-violet-500 py-3 font-bold text-white shadow-md shadow-violet-200"
+                  className="flex-1 rounded-xl bg-blue-600 py-3 font-bold text-white"
                 >
                   다음
                 </button>
@@ -568,7 +557,7 @@ export default function Editor() {
                 <button
                   type="button"
                   onClick={() => setShowGuidePopup(false)}
-                  className="flex-1 rounded-xl bg-violet-500 py-3 font-bold text-white shadow-md shadow-violet-200"
+                  className="flex-1 rounded-xl bg-blue-600 py-3 font-bold text-white"
                 >
                   시작하기
                 </button>
@@ -580,17 +569,16 @@ export default function Editor() {
 
       <div className="mx-auto flex w-full max-w-[520px] flex-col gap-5">
         <header>
-          <h1 className="text-2xl font-black text-purple-950">포토 키캡키링 편집</h1>
-          <p className="mt-1 text-sm text-purple-600/70">
+          <h1 className="text-2xl font-black text-gray-900">포토 키캡키링 편집</h1>
+          <p className="mt-1 text-sm text-gray-500">
             주문하신 사이즈를 선택하고 사진을 가이드에 맞춰주세요.
           </p>
         </header>
 
-        {/* 사이즈 선택 섹션 */}
-        <section className="rounded-3xl bg-white p-4 shadow-sm border border-purple-100/50">
+        <section className="rounded-3xl bg-white p-4 shadow-sm">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-bold text-gray-900">사이즈 선택</h2>
-            <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-600">
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700">
               {selectedSize}
             </span>
           </div>
@@ -607,8 +595,8 @@ export default function Editor() {
                 }}
                 className={`rounded-2xl border p-3 transition ${
                   selectedSize === size.key
-                    ? 'border-violet-500 bg-violet-50/50 text-violet-600 shadow-sm'
-                    : 'border-purple-50 bg-white text-gray-700 hover:border-purple-200'
+                    ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-sm'
+                    : 'border-gray-200 bg-white text-gray-700'
                 }`}
               >
                 <div className="flex h-12 items-center justify-center">
@@ -641,21 +629,20 @@ export default function Editor() {
           className="hidden"
         />
 
-        {/* 캔버스 뷰포트 섹션 */}
-        <section className="rounded-3xl bg-white p-4 shadow-sm border border-purple-100/50">
-          <div className="relative w-full overflow-hidden rounded-2xl border border-purple-100 bg-purple-50/20">
+        <section className="rounded-3xl bg-white p-4 shadow-sm">
+          <div className="relative w-full overflow-hidden rounded-2xl border border-gray-200 bg-slate-100">
             {!hasImage && (
               <div 
                 onClick={triggerFileInput}
-                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-purple-50/90 cursor-pointer p-6 text-center hover:bg-purple-100/70 transition-all gap-2"
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-100/90 cursor-pointer p-6 text-center hover:bg-slate-200/80 transition-all gap-2"
               >
-                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-violet-500 shadow-sm">
+                <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
                 </div>
-                <span className="text-base font-bold text-purple-950">클릭하여 사진 첨부하기</span>
-                <span className="text-xs text-purple-600/70">스마트폰 앨범 또는 PC 보관함에서 사진을 선택해 주세요.</span>
+                <span className="text-base font-bold text-gray-900">클릭하여 사진 첨부하기</span>
+                <span className="text-xs text-gray-500">스마트폰 앨범 또는 PC 보관함에서 사진을 선택해 주세요.</span>
               </div>
             )}
 
@@ -673,7 +660,7 @@ export default function Editor() {
             <button
               type="button"
               onClick={() => zoomImage(1.1)}
-              className="rounded-xl bg-purple-50/60 py-3 text-sm font-bold text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
+              className="rounded-xl bg-gray-100 py-3 text-sm font-bold text-gray-700 disabled:opacity-40"
               disabled={!hasImage}
             >
               확대
@@ -681,7 +668,7 @@ export default function Editor() {
             <button
               type="button"
               onClick={() => zoomImage(0.9)}
-              className="rounded-xl bg-purple-50/60 py-3 text-sm font-bold text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
+              className="rounded-xl bg-gray-100 py-3 text-sm font-bold text-gray-700 disabled:opacity-40"
               disabled={!hasImage}
             >
               축소
@@ -689,7 +676,7 @@ export default function Editor() {
             <button
               type="button"
               onClick={centerImage}
-              className="rounded-xl bg-purple-50/60 py-3 text-sm font-bold text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
+              className="rounded-xl bg-gray-100 py-3 text-sm font-bold text-gray-700 disabled:opacity-40"
               disabled={!hasImage}
             >
               가운데
@@ -697,7 +684,7 @@ export default function Editor() {
             <button
               type="button"
               onClick={resetImage}
-              className="rounded-xl bg-purple-50/60 py-3 text-sm font-bold text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
+              className="rounded-xl bg-gray-100 py-3 text-sm font-bold text-gray-700 disabled:opacity-40"
               disabled={!hasImage}
             >
               초기화
@@ -708,7 +695,7 @@ export default function Editor() {
             <button
               type="button"
               onClick={triggerFileInput}
-              className="w-full mt-2 rounded-xl border border-dashed border-purple-200 bg-white py-2.5 text-xs font-bold text-violet-600 hover:bg-purple-50/30 flex items-center justify-center gap-1.5"
+              className="w-full mt-2 rounded-xl border border-dashed border-gray-300 bg-white py-2.5 text-xs font-bold text-gray-600 hover:bg-gray-50 flex items-center justify-center gap-1.5"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -721,7 +708,7 @@ export default function Editor() {
         <button
           type="button"
           onClick={handleDesignComplete}
-          className="rounded-2xl bg-violet-500 py-4 text-lg font-black text-white shadow-lg shadow-violet-100 transition active:scale-95 disabled:bg-purple-200 disabled:scale-100 disabled:shadow-none"
+          className="rounded-2xl bg-blue-600 py-4 text-lg font-black text-white shadow-lg transition active:scale-95 disabled:bg-gray-300 disabled:scale-100"
           disabled={!hasImage}
         >
           {showOrderForm ? '✔️ 편집 정보가 반영되었습니다' : '편집 완료'}
@@ -730,13 +717,13 @@ export default function Editor() {
         {showOrderForm && (
           <div 
             ref={orderFormRef} 
-            className="border-t border-purple-100 pt-8 space-y-8 transition-all duration-500 animate-fadeIn"
+            className="border-t border-gray-200 pt-8 space-y-8 transition-all duration-500 animate-fadeIn"
           >
             <div className="grid grid-cols-1 gap-8">
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-purple-950">주문자 정보 입력</h3>
+                <h3 className="text-lg font-semibold text-gray-950">주문자 정보 입력</h3>
                 
-                <form onSubmit={handleOrderSubmit} className="space-y-4 bg-white p-6 rounded-xl border border-purple-100/60 shadow-sm">
+                <form onSubmit={handleOrderSubmit} className="space-y-4 bg-slate-50 p-6 rounded-xl border border-slate-100">
                   
                   {/* 1) 주문자 성함 */}
                   <div>
@@ -750,7 +737,7 @@ export default function Editor() {
                       value={orderData.customerName}
                       onChange={handleNameChange}
                       placeholder="홍길동"
-                      className="w-full px-3 py-2 border border-purple-100 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 text-sm bg-white text-gray-900 placeholder-gray-400"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-gray-900 placeholder-gray-400"
                     />
                   </div>
 
@@ -766,7 +753,7 @@ export default function Editor() {
                       value={orderData.contact}
                       onChange={handleContactChange}
                       placeholder="01012345678 -없이 입력"
-                      className="w-full px-3 py-2 border border-purple-100 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 text-sm bg-white text-gray-900 placeholder-gray-400"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-gray-900 placeholder-gray-400"
                     />
                   </div>
 
@@ -782,7 +769,7 @@ export default function Editor() {
                             value={color}
                             checked={orderData.boardColor === color}
                             onChange={(e) => setOrderData({ ...orderData, boardColor: e.target.value })}
-                            className="w-4 h-4 text-violet-500 border-purple-200 focus:ring-violet-400"
+                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                           />
                           {color}
                         </label>
@@ -790,25 +777,25 @@ export default function Editor() {
                     </div>
                   </div>
 
-                  {/* 4) 이벤트 코드 입력 란 (최대 8글자 캡슐화 완료) */}
+                  {/* 💡 4) 이벤트 코드 입력 란 (선택 사항) */}
                   <div>
                     <label htmlFor="eventCode" className="block text-sm font-medium text-gray-700 mb-1">
-                      이벤트 코드 <span className="text-xs text-purple-400 font-normal">(선택사항 / 최대 8자)</span>
+                      이벤트 코드 <span className="text-xs text-gray-400 font-normal">(선택사항)</span>
                     </label>
                     <input
                       type="text"
                       id="eventCode"
                       value={orderData.eventCode}
-                      onChange={handleEventCodeChange}
-                      placeholder="이벤트 코드를 입력해주세요"
-                      className="w-full px-3 py-2 border border-purple-100 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 text-sm bg-white text-gray-900 placeholder-gray-400"
+                      onChange={(e) => setOrderData({ ...orderData, eventCode: e.target.value })}
+                      placeholder="발급받으신 코드가 있다면 입력해주세요"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white text-gray-900 placeholder-gray-400"
                     />
                   </div>
 
                   <div className="pt-4">
                     <button
                       type="submit"
-                      className="w-full py-3 bg-violet-500 text-white font-semibold rounded-lg shadow-md shadow-violet-100 hover:bg-violet-600 transition-colors focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2"
+                      className="w-full py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                     >
                       주문 제작 신청하기
                     </button>
