@@ -3,7 +3,8 @@
 import * as fabric from 'fabric';
 import { useEffect, useRef, useState } from 'react';
 
-const TARGET_WIDTH = 1000;
+//const TARGET_WIDTH = 1000;
+const UNIT_PIXELS = 250; // 💡 1칸(2cm)당 할당할 최적의 고해상도 픽셀 수
 
 const SIZES = [
   { key: '1x1', cols: 1, rows: 1 },
@@ -363,7 +364,10 @@ export default function Editor() {
     canvas.requestRenderAll();
 
     const bounds = guideBounds.current;
-    const multiplier = TARGET_WIDTH / bounds.width;
+    // 💡 선택된 사이즈의 실제 타겟 픽셀 크기를 동적으로 계산 (예: 3x4 면 가로 750px, 세로 1000px)
+    const targetWidth = selectedSpec.cols * UNIT_PIXELS;
+
+    const multiplier = targetWidth / bounds.width;
 
     const dataUrl = canvas.toDataURL({
       format: 'png',
