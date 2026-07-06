@@ -3,8 +3,7 @@
 import * as fabric from 'fabric';
 import { useEffect, useRef, useState } from 'react';
 
-//const TARGET_WIDTH = 1000;
-const UNIT_PIXELS = 250; // 💡 1칸(2cm)당 할당할 최적의 고해상도 픽셀 수
+const UNIT_PIXELS = 250; 
 
 const SIZES = [
   { key: '1x1', cols: 1, rows: 1 },
@@ -84,6 +83,20 @@ export default function Editor() {
 
     guideBounds.current = { left, top, width: guideW, height: guideH };
 
+    const maskPathString = `
+      M 0 0 H ${canvasW} V ${canvasH} H 0 Z 
+      M ${left} ${top} H ${left + guideW} V ${top + guideH} H ${left} Z
+    `;
+
+    const shadowMask = new fabric.Path(maskPathString, {
+      fill: 'rgba(17, 24, 39, 0.80)', 
+      fillRule: 'evenodd',           
+      selectable: false,
+      evented: false, 
+    });
+    markAsGuideObject(shadowMask);
+    canvas.add(shadowMask);
+
     const outer = new fabric.Rect({
       left,
       top,
@@ -108,14 +121,14 @@ export default function Editor() {
       const x = Math.floor(left + cellW * i);
       const whiteLine = new fabric.Line([x, top, x, top + guideH], {
         stroke: '#ffffff',
-        strokeWidth: 2.5,
+        strokeWidth: 3.5,
         opacity: 0.7,
         selectable: false,
         evented: false,
       });
       const blackLine = new fabric.Line([x, top, x, top + guideH], {
         stroke: '#111827',
-        strokeWidth: 1,
+        strokeWidth: 2.5,
         opacity: 0.85,
         selectable: false,
         evented: false,
@@ -130,14 +143,14 @@ export default function Editor() {
       const y = Math.floor(top + cellH * i);
       const whiteLine = new fabric.Line([left, y, left + guideW, y], {
         stroke: '#ffffff',
-        strokeWidth: 2.5,
+        strokeWidth: 3.5,
         opacity: 0.7,
         selectable: false,
         evented: false,
       });
       const blackLine = new fabric.Line([left, y, left + guideW, y], {
         stroke: '#111827',
-        strokeWidth: 1,
+        strokeWidth: 2.5,
         opacity: 0.85,
         selectable: false,
         evented: false,
@@ -151,7 +164,6 @@ export default function Editor() {
     const centerX = Math.floor(left + guideW / 2);
     const centerY = Math.floor(top + guideH / 2);
 
-    // 🎨 선택 보조 점선 가이드도 은은한 바이올렛 톤으로 일치화
     const vCenter = new fabric.Line([centerX, top, centerX, top + guideH], {
       stroke: '#8b5cf6',
       strokeWidth: 1,
@@ -182,7 +194,6 @@ export default function Editor() {
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const orderFormRef = useRef<HTMLDivElement>(null);
 
-
   const handleCanvasObjectModified = () => {
     setShowOrderForm(false);
     setPreviewImageUrl(null);
@@ -197,7 +208,7 @@ export default function Editor() {
     const canvas = new fabric.Canvas(canvasRef.current, {
       width,
       height,
-      backgroundColor: '#ffffff', // 
+      backgroundColor: '#ffffff', 
       preserveObjectStacking: true,
       selection: false,
       allowTouchScrolling: true,
@@ -209,17 +220,21 @@ export default function Editor() {
     canvas.on('object:moving', handleCanvasObjectModified);
     canvas.on('object:scaling', handleCanvasObjectModified);
 
-    const upperCanvasEl = canvas.upperCanvasEl;
-    if (upperCanvasEl) {
-      upperCanvasEl.addEventListener('touchstart', () => {
-        const activeObject = canvas.getActiveObject();
-        if (!activeObject) {
-          upperCanvasEl.style.touchAction = 'pan-y';
-        } else {
-          upperCanvasEl.style.touchAction = 'none';
-        }
-      }, { passive: true });
-    }
+  const upperCanvasEl = canvas.upperCanvasEl;
+  if (upperCanvasEl) {
+    upperCanvasEl.addEventListener('touchstart', (e: TouchEvent) => {
+      // 💡 target 변수에서 실제 FabricObject인 'target' 속성을 구조 분해 할당으로 추출합니다.
+      const findResult = canvas.findTarget(e);
+      const actualTarget = findResult?.target; // 실제 만겨진 FabricObject 픽업
+      
+      // 💡 actualTarget(진짜 사진 객체)이 존재하고 가이드라인 객체가 아닐 때만 스크롤 잠금
+      if (actualTarget && !isGuideObject(actualTarget)) {
+        upperCanvasEl.style.touchAction = 'none';
+      } else {
+        upperCanvasEl.style.touchAction = 'pan-y';
+      }
+    }, { passive: true });
+  }
 
     return () => {
       canvas.off('object:moving', handleCanvasObjectModified);
@@ -264,8 +279,8 @@ export default function Editor() {
         originY: 'center',
         cornerStyle: 'circle',
         transparentCorners: false,
-        borderColor: '#8b5cf6', // 🎨 조절점 테두리를 바이올렛으로 변경
-        cornerColor: '#8b5cf6', // 🎨 조절점 앵커 서클을 바이올렛으로 변경
+        borderColor: '#8b5cf6', 
+        cornerColor: '#8b5cf6', 
       });
 
       img.scaleToWidth(bounds.width * 0.9);
@@ -292,6 +307,7 @@ export default function Editor() {
     if (!canvas || !img) return;
     img.scale((img.scaleX || 1) * ratio);
     canvas.requestRenderAll();
+    bringGuidesToFront(canvas); 
     handleCanvasObjectModified();
   };
 
@@ -308,6 +324,7 @@ export default function Editor() {
     });
     canvas.setActiveObject(img);
     canvas.requestRenderAll();
+    bringGuidesToFront(canvas); 
     handleCanvasObjectModified();
   };
 
@@ -322,13 +339,49 @@ export default function Editor() {
       top: bounds.top + bounds.height / 2,
       originX: 'center',
       originY: 'center',
+      flipX: false,
+      flipY: false,
     });
     img.scaleToWidth(bounds.width * 0.9);
     canvas.setActiveObject(img);
     canvas.requestRenderAll();
+    bringGuidesToFront(canvas); 
     handleCanvasObjectModified();
   };
 
+  const rotateImage90 = () => {
+    const canvas = fabricCanvas.current;
+    const img = uploadedImage.current;
+    if (!canvas || !img) return;
+    
+    const currentAngle = img.angle || 0;
+    img.set({ angle: (currentAngle + 90) % 360 });
+    canvas.requestRenderAll();
+    bringGuidesToFront(canvas); 
+    handleCanvasObjectModified();
+  };
+
+  const flipImageX = () => {
+    const canvas = fabricCanvas.current;
+    const img = uploadedImage.current;
+    if (!canvas || !img) return;
+    
+    img.set({ flipX: !img.flipX });
+    canvas.requestRenderAll();
+    bringGuidesToFront(canvas); 
+    handleCanvasObjectModified();
+  };
+
+  const flipImageY = () => {
+    const canvas = fabricCanvas.current;
+    const img = uploadedImage.current;
+    if (!canvas || !img) return;
+    
+    img.set({ flipY: !img.flipY });
+    canvas.requestRenderAll();
+    bringGuidesToFront(canvas); 
+    handleCanvasObjectModified();
+  };
 
   const [orderData, setOrderData] = useState({
     orderType: '주문전',
@@ -364,9 +417,7 @@ export default function Editor() {
     canvas.requestRenderAll();
 
     const bounds = guideBounds.current;
-    // 💡 선택된 사이즈의 실제 타겟 픽셀 크기를 동적으로 계산 (예: 3x4 면 가로 750px, 세로 1000px)
     const targetWidth = selectedSpec.cols * UNIT_PIXELS;
-
     const multiplier = targetWidth / bounds.width;
 
     const dataUrl = canvas.toDataURL({
@@ -375,7 +426,7 @@ export default function Editor() {
       top: bounds.top,
       width: bounds.width,
       height: bounds.height,
-      multiplier: multiplier,
+      multiplier: multiplier, 
       quality: 1,
       enableRetinaScaling: false,
     });
@@ -475,15 +526,9 @@ export default function Editor() {
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-  // 💡 천지인 키보드 버그를 방지하기 위해 특수문자/숫자 제한을 해제하고 15자 제한만 유지합니다.
-  if (value.length <= 15) {
-    setOrderData((prev) => ({ ...prev, customerName: value }));
-  }
-  // const value = e.target.value;
-    // const sanitizedValue = value.replace(/[^a-zA-Z가-힣ㄱ-ㅎㅏ-ㅣ\s]/g, '');
-    // if (sanitizedValue.length <= 15) {
-    //   setOrderData((prev) => ({ ...prev, customerName: sanitizedValue }));
-    // }
+    if (value.length <= 15) {
+      setOrderData((prev) => ({ ...prev, customerName: value }));
+    }
   };
 
   const handleContactChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -494,7 +539,6 @@ export default function Editor() {
     }
   };
 
-  // 💡 이벤트 코드 입력 제어 핸들러 (최대 8글자 제한 레이어)
   const handleEventCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     if (value.length <= 8) {
@@ -518,12 +562,12 @@ export default function Editor() {
   ];
 
   return (
-    <div className="min-h-screen bg-purple-50/30 px-4 py-6">
+    <div className="min-h-screen bg-[#faf8ff] text-gray-900 dark:bg-[#faf8ff] dark:text-gray-900 px-4 py-6">
       {isSubmitting && (
         <div className="fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-black/70 px-4 text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-white border-t-transparent mb-4"></div>
           <p className="text-xl font-bold text-white">사진 및 주문서 업로드 중...</p>
-          <p className="text-sm text-gray-300 mt-2">짧게는 5초, 길게는 10초정도 소요됩니다. 잠시만 기다려주세요!</p>
+          <p className="text-sm text-gray-300 mt-2">서버 최적화 완료! 잠시만 기다려주시면 금방 전송됩니다.</p>
         </div>
       )}
 
@@ -533,16 +577,16 @@ export default function Editor() {
           style={{ touchAction: 'auto' }}
         >
           <div
-            className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl"
+            className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl dark:bg-white text-gray-900 dark:text-gray-900"
             style={{ touchAction: 'auto' }}
             onTouchStart={(e) => e.stopPropagation()}
             onTouchMove={(e) => e.stopPropagation()}
             onTouchEnd={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-xl mb-3 font-semibold text-purple-900 tracking-wide">PHOTO KEYCAP GUIDE</div>
-            <h2 className="text-xl mb-4 font-black text-gray-900">{slides[slideIndex].title}</h2>
-            <p className="mb-6 text-sm leading-6 text-gray-600">{slides[slideIndex].desc}</p>
+            <div className="text-xl mb-3 font-semibold text-purple-900 dark:text-purple-900 tracking-wide">PHOTO KEYCAP GUIDE</div>
+            <h2 className="text-xl mb-4 font-black text-gray-900 dark:text-gray-900">{slides[slideIndex].title}</h2>
+            <p className="mb-6 text-sm leading-6 text-gray-600 dark:text-gray-600">{slides[slideIndex].desc}</p>
 
             <div className="mb-5 flex justify-center gap-2">
               {slides.map((_, i) => (
@@ -589,17 +633,16 @@ export default function Editor() {
 
       <div className="mx-auto flex w-full max-w-[520px] flex-col gap-5">
         <header>
-          <h1 className="text-2xl font-black text-purple-950">포토 키캡키링 편집</h1>
-          <p className="mt-1 text-sm text-purple-600/70">
+          <h1 className="text-2xl font-black text-purple-950 dark:text-purple-950">포토 키캡키링 편집</h1>
+          <p className="mt-1 text-sm text-purple-600/70 dark:text-purple-600/70">
             주문하신 사이즈를 선택하고 사진을 가이드에 맞춰주세요.
           </p>
         </header>
 
-        {/* 사이즈 선택 섹션 */}
-        <section className="rounded-3xl bg-white p-4 shadow-sm border border-purple-100/50">
+        <section className="rounded-3xl bg-white dark:bg-white p-4 shadow-sm border border-purple-100/50">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-bold text-gray-900">사이즈 선택</h2>
-            <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-bold text-violet-600">
+            <h2 className="font-bold text-gray-900 dark:text-gray-900">사이즈 선택</h2>
+            <span className="rounded-full bg-violet-50 dark:bg-violet-50 px-3 py-1 text-xs font-bold text-violet-600 dark:text-violet-600">
               {selectedSize}
             </span>
           </div>
@@ -616,8 +659,8 @@ export default function Editor() {
                 }}
                 className={`rounded-2xl border p-3 transition ${
                   selectedSize === size.key
-                    ? 'border-violet-500 bg-violet-50/50 text-violet-600 shadow-sm'
-                    : 'border-purple-50 bg-white text-gray-700 hover:border-purple-200'
+                    ? 'border-violet-500 bg-violet-50/50 text-violet-600 dark:text-violet-600 shadow-sm'
+                    : 'border-purple-50 bg-white dark:bg-white text-gray-700 dark:text-gray-700 hover:border-purple-200'
                 }`}
               >
                 <div className="flex h-12 items-center justify-center">
@@ -650,21 +693,20 @@ export default function Editor() {
           className="hidden"
         />
 
-        {/* 캔버스 뷰포트 섹션 */}
-        <section className="rounded-3xl bg-white p-4 shadow-sm border border-purple-100/50">
-          <div className="relative w-full overflow-hidden rounded-2xl border border-purple-100 bg-purple-50/20">
+        <section className="rounded-3xl bg-white dark:bg-white p-4 shadow-sm border border-purple-100/50">
+          <div className="relative w-full overflow-hidden rounded-2xl border border-purple-100 bg-purple-50/20 dark:bg-purple-50/20">
             {!hasImage && (
               <div 
                 onClick={triggerFileInput}
-                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-purple-50/90 cursor-pointer p-6 text-center hover:bg-purple-100/70 transition-all gap-2"
+                className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-purple-50/90 dark:bg-purple-50/90 cursor-pointer p-6 text-center hover:bg-purple-100/70 transition-all gap-2"
               >
-                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-violet-500 shadow-sm">
+                <div className="w-12 h-12 rounded-full bg-white dark:bg-white flex items-center justify-center text-violet-500 shadow-sm">
                   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-6 h-6">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                   </svg>
                 </div>
-                <span className="text-base font-bold text-purple-950">클릭하여 사진 첨부하기</span>
-                <span className="text-xs text-purple-600/70">스마트폰 앨범 또는 PC 보관함에서 사진을 선택해 주세요.</span>
+                <span className="text-base font-bold text-purple-950 dark:text-purple-950">클릭하여 사진 첨부하기</span>
+                <span className="text-xs text-purple-600/70 dark:text-purple-600/70">스마트폰 앨범 또는 PC 보관함에서 사진을 선택해 주세요.</span>
               </div>
             )}
 
@@ -673,54 +715,92 @@ export default function Editor() {
             </div>
           </div>
 
-          <p className="mt-3 text-center text-xs leading-5 text-gray-500">
-            빨간색 영역 안으로 각인될 이미지를 위치시켜주세요.<br />
-            격자무늬는 실제 키캡간의 경계라인입니다.
+          <p className="mt-3 text-center text-xs leading-5 text-gray-500 dark:text-gray-500">
+            빨간색 박스는 실제 각인되는 키캡 전체 면적입니다.<br />
+            격자무늬는 실제 키캡간의 경계라인입니다.            
           </p>
 
-          <div className="mt-4 grid grid-cols-4 gap-2">
-            <button
-              type="button"
-              onClick={() => zoomImage(1.1)}
-              className="rounded-xl bg-purple-50/60 py-3 text-sm font-bold text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
-              disabled={!hasImage}
-            >
-              확대
-            </button>
-            <button
-              type="button"
-              onClick={() => zoomImage(0.9)}
-              className="rounded-xl bg-purple-50/60 py-3 text-sm font-bold text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
-              disabled={!hasImage}
-            >
-              축소
-            </button>
-            <button
-              type="button"
-              onClick={centerImage}
-              className="rounded-xl bg-purple-50/60 py-3 text-sm font-bold text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
-              disabled={!hasImage}
-            >
-              가운데
-            </button>
-            <button
-              type="button"
-              onClick={resetImage}
-              className="rounded-xl bg-purple-50/60 py-3 text-sm font-bold text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
-              disabled={!hasImage}
-            >
-              초기화
-            </button>
+          <div className="mt-4 flex flex-col gap-2">
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => zoomImage(1.1)}
+                className="rounded-xl bg-purple-50/60 dark:bg-purple-50/60 py-3 text-xs font-bold text-purple-950 dark:text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
+                disabled={!hasImage}
+              >
+                확대
+              </button>
+              <button
+                type="button"
+                onClick={() => zoomImage(0.9)}
+                className="rounded-xl bg-purple-50/60 dark:bg-purple-50/60 py-3 text-xs font-bold text-purple-950 dark:text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
+                disabled={!hasImage}
+              >
+                축소
+              </button>
+              <button
+                type="button"
+                onClick={centerImage}
+                className="rounded-xl bg-purple-50/60 dark:bg-purple-50/60 py-3 text-xs font-bold text-purple-950 dark:text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
+                disabled={!hasImage}
+              >
+                가운데
+              </button>
+              <button
+                type="button"
+                onClick={resetImage}
+                className="rounded-xl bg-purple-50/60 dark:bg-purple-50/60 py-3 text-xs font-bold text-purple-950 dark:text-purple-950 hover:bg-purple-100/50 disabled:opacity-40"
+                disabled={!hasImage}
+              >
+                초기화
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={rotateImage90}
+                className="rounded-xl bg-violet-50 dark:bg-violet-50 py-3 text-xs font-bold text-violet-700 hover:bg-purple-100/60 disabled:opacity-40 flex items-center justify-center gap-1 border border-purple-100"
+                disabled={!hasImage}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+                90° 회전
+              </button>
+              <button
+                type="button"
+                onClick={flipImageX}
+                className="rounded-xl bg-violet-50 dark:bg-violet-50 py-3 text-xs font-bold text-violet-700 hover:bg-purple-100/60 disabled:opacity-40 flex items-center justify-center gap-1 border border-purple-100"
+                disabled={!hasImage}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0-4.5 4.5M21 7.5H7.5" />
+                </svg>
+                좌우 대칭
+              </button>
+              <button
+                type="button"
+                onClick={flipImageY}
+                className="rounded-xl bg-violet-50 dark:bg-violet-50 py-3 text-xs font-bold text-violet-700 hover:bg-purple-100/60 disabled:opacity-40 flex items-center justify-center gap-1 border border-purple-100"
+                disabled={!hasImage}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-3.5 h-3.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7.5 7.5 3m0 0L12 7.5M7.5 3v13.5m13.5 0-4.5 4.5m0 0-4.5-4.5m4.5 4.5V7.5" />
+                </svg>
+                상하 대칭
+              </button>
+            </div>
           </div>
 
           {hasImage && (
             <button
               type="button"
               onClick={triggerFileInput}
-              className="w-full mt-2 rounded-xl border border-dashed border-purple-200 bg-white py-2.5 text-xs font-bold text-violet-600 hover:bg-purple-50/30 flex items-center justify-center gap-1.5"
+              className="w-full mt-2 rounded-xl border border-dashed border-purple-200 bg-white dark:bg-white py-2.5 text-xs font-bold text-violet-600 dark:text-violet-600 hover:bg-purple-50/30 flex items-center justify-center gap-1.5"
             >
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
               </svg>
               다른 사진으로 변경하기
             </button>
@@ -743,13 +823,12 @@ export default function Editor() {
           >
             <div className="grid grid-cols-1 gap-8">
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-purple-950">주문자 정보 입력</h3>
+                <h3 className="text-lg font-semibold text-purple-950 dark:text-purple-950">주문자 정보 입력</h3>
                 
-                <form onSubmit={handleOrderSubmit} className="space-y-4 bg-white p-6 rounded-xl border border-purple-100/60 shadow-sm">
+                <form onSubmit={handleOrderSubmit} className="space-y-4 bg-white dark:bg-white p-6 rounded-xl border border-purple-100/60 shadow-sm text-gray-900 dark:text-gray-900">
                   
-                  {/* 1) 주문자 성함 */}
                   <div>
-                    <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="customerName" className="block text-sm font-medium text-gray-700 dark:text-gray-700 mb-1">
                       주문자 성함
                     </label>
                     <input
@@ -759,13 +838,12 @@ export default function Editor() {
                       value={orderData.customerName}
                       onChange={handleNameChange}
                       placeholder="홍길동"
-                      className="w-full px-3 py-2 border border-purple-100 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 text-sm bg-white text-gray-900 placeholder-gray-400"
+                      className="w-full px-3 py-2 border border-purple-100 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 text-sm bg-white dark:bg-white text-gray-900 dark:text-gray-900 placeholder-gray-400"
                     />
                   </div>
 
-                  {/* 2) 주문자 연락처 */}
                   <div>
-                    <label htmlFor="contact" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="contact" className="block text-sm font-medium text-gray-700 dark:text-gray-700 mb-1">
                       주문자 연락처
                     </label>
                     <input
@@ -775,16 +853,15 @@ export default function Editor() {
                       value={orderData.contact}
                       onChange={handleContactChange}
                       placeholder="01012345678 -없이 입력"
-                      className="w-full px-3 py-2 border border-purple-100 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 text-sm bg-white text-gray-900 placeholder-gray-400"
+                      className="w-full px-3 py-2 border border-purple-100 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 text-sm bg-white dark:bg-white text-gray-900 dark:text-gray-900 placeholder-gray-400"
                     />
                   </div>
 
-                  {/* 3) 보드 색상 선택 */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">보드 색상</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-700 mb-2">보드 색상</label>
                     <div className="flex flex-wrap gap-4">
                       {['블랙', '화이트', '핑크', ...(selectedSize === '3x3' ? ['투명'] : [])].map((color) => (
-                        <label key={color} className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <label key={color} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-700 cursor-pointer">
                           <input
                             type="radio"
                             name="boardColor"
@@ -799,9 +876,8 @@ export default function Editor() {
                     </div>
                   </div>
 
-                  {/* 4) 이벤트 코드 입력 란 (최대 8글자 캡슐화 완료) */}
                   <div>
-                    <label htmlFor="eventCode" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label htmlFor="eventCode" className="block text-sm font-medium text-gray-700 dark:text-gray-700 mb-1">
                       이벤트 코드 <span className="text-xs text-purple-400 font-normal">(선택사항 / 최대 8자)</span>
                     </label>
                     <input
@@ -810,7 +886,7 @@ export default function Editor() {
                       value={orderData.eventCode}
                       onChange={handleEventCodeChange}
                       placeholder="이벤트 코드를 입력해주세요"
-                      className="w-full px-3 py-2 border border-purple-100 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 text-sm bg-white text-gray-900 placeholder-gray-400"
+                      className="w-full px-3 py-2 border border-purple-100 rounded-md focus:outline-none focus:ring-1 focus:ring-violet-400 focus:border-violet-400 text-sm bg-white dark:bg-white text-gray-900 dark:text-gray-900 placeholder-gray-400"
                     />
                   </div>
 
