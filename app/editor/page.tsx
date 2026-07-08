@@ -633,9 +633,9 @@ export default function Editor() {
 
       <div className="mx-auto flex w-full max-w-[520px] flex-col gap-5">
         <header>
-          <h1 className="text-2xl font-black text-purple-950 dark:text-purple-950">포토 키캡키링 편집</h1>
+          <h1 className="text-2xl font-black text-purple-950 dark:text-purple-950">포토 키캡키링</h1>
           <p className="mt-1 text-sm text-purple-600/70 dark:text-purple-600/70">
-            주문하신 사이즈를 선택하고 사진을 가이드에 맞춰주세요.
+            마음에 드는 사이즈를 선택하고 사진을 가이드에 맞춰주세요.
           </p>
         </header>
 
