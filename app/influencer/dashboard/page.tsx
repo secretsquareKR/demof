@@ -1,0 +1,289 @@
+'use client';
+
+import { supabase } from '@/app/lib/supabase';
+import React, { useEffect, useState } from 'react'; // 💡 useEffect 추가
+
+interface RewardLog {
+  id: string;
+  order_id: string | null;
+  amount: number;
+  type: 'EARNED' | 'WITHDRAWN';
+  order_status: 'PENDING' | 'COMPLETED';
+  description: string | null;
+  created_at: string;
+}
+
+export default function InfluencerDashboard() {
+  const [loginForm, setLoginForm] = useState({ name: '', phone: '' });
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [influencerInfo, setInfluencerInfo] = useState<{ id: string; name: string; referralCode: string } | null>(null);
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const [summary, setSummary] = useState({ pendingAmount: 0, totalEarned: 0, totalWithdrawn: 0, currentBalance: 0 });
+  const [logs, setLogs] = useState<RewardLog[]>([]);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+   // 💡 [추가] 2. 로그인 성공 데이터를 바탕으로 Supabase에서 적립금 정보를 긁어오는 함수 분리
+  const loadRewardData = async (influencer: { id: string; name: string; referralCode: string }) => {
+    try {
+      setIsLoading(true);
+      const { data: rewardLogs, error: logError } = await supabase
+        .from('reward_logs')
+        .select('*')
+        .eq('influencer_id', influencer.id)
+        .order('created_at', { ascending: false });
+
+      if (logError) throw logError;
+
+      let pending = 0;
+      let earned = 0;
+      let withdrawn = 0;
+
+      const rawLogs: RewardLog[] = rewardLogs || [];
+
+      rawLogs.forEach((log) => {
+        if (log.type === 'EARNED') {
+          if (log.order_status === 'PENDING') {
+            pending += Number(log.amount);
+          } else if (log.order_status === 'COMPLETED') {
+            earned += Number(log.amount);
+          }
+        } else if (log.type === 'WITHDRAWN') {
+          withdrawn += Number(log.amount);
+        }
+      });
+
+      setInfluencerInfo(influencer);
+      setSummary({ pendingAmount: pending, totalEarned: earned, totalWithdrawn: withdrawn, currentBalance: earned - withdrawn });
+      setLogs(rawLogs);
+      setIsLoggedIn(true);
+    } catch (e) {
+      console.error('데이터 로드 에러:', e);
+      setErrorMessage('세션 연동 중 오류가 발생했습니다.');
+    } finally {
+        setIsLoading(false);
+        setIsInitialLoading(false); // 💡 최초 로딩 완료 표시
+  }
+  };
+  
+  // 💡 [추가] 1. 컴포넌트 마운트 시 브라우저 로컬스토리지에 로그인 이력이 있는지 체크
+// useEffect 내부의 모든 동기적 setState 호출을 완벽히 격리
+  useEffect(() => {
+    const savedInfo = localStorage.getItem('dimof_influencer_session');
+    
+    // 세션이 있든 없든, 상태 변경(setState)을 동기적으로 즉시 실행하지 않고
+    // React의 첫 렌더링 사이클이 완전히 끝난 직후 비동기로 실행되도록 제어합니다.
+    setTimeout(() => {
+      if (savedInfo) {
+        const parsedInfo = JSON.parse(savedInfo);
+        loadRewardData(parsedInfo);
+      } else {
+        setIsInitialLoading(false); // 세션이 없을 때의 상태 변경도 안전하게 뒤로 미룸
+      }
+    }, 0);
+  }, []);
+
+ 
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (name === 'phone') {
+      setLoginForm({ ...loginForm, [name]: value.replace(/[^0-9]/g, '') });
+    } else {
+      setLoginForm({ ...loginForm, [name]: value });
+    }
+  };
+
+  // 조회(로그인) 처리
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage('');
+    setIsLoading(true);
+
+    try {
+      const { data: influencer, error: infError } = await supabase
+        .from('influencers')
+        .select('id, name, referral_code, status')
+        .eq('name', loginForm.name)
+        .eq('phone', loginForm.phone)
+        .maybeSingle();
+
+      if (infError) throw infError;
+
+      if (!influencer) {
+        setErrorMessage('등록되지 않은 정보이거나 일치하는 내역이 없습니다.');
+        setIsLoading(false);
+        return;
+      }
+
+      if (influencer.status === 'PENDING') {
+        setErrorMessage('현재 승인 심사 대기 중인 인플루언서입니다.');
+        setIsLoading(false);
+        return;
+      }
+
+      if (influencer.status === 'REJECTED') {
+        setErrorMessage('신청이 반려된 계정입니다. 고객센터로 문의해 주세요.');
+        setIsLoading(false);
+        return;
+      }
+
+      const sessionData = { id: influencer.id, name: influencer.name, referralCode: influencer.referral_code };
+      
+      // 💡 [추가] 로그인 성공 시 로컬스토리지에 정보 영구 저장
+      localStorage.setItem('dimof_influencer_session', JSON.stringify(sessionData));
+      
+      // 데이터 로드 실행
+      await loadRewardData(sessionData);
+
+    } catch (error) {
+      console.error('대시보드 조회 에러:', error);
+      setErrorMessage('조회 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 로그아웃
+  const handleLogout = () => {
+    // 💡 [추가] 로그아웃 시 로컬스토리지에 있는 키 정보 완전히 삭제
+    localStorage.removeItem('dimof_influencer_session');
+    setIsLoggedIn(false);
+    setInfluencerInfo(null);
+    setLoginForm({ name: '', phone: '' });
+  };
+
+  if (isInitialLoading) {
+  return (
+    <div className="min-h-screen bg-[#F8F9FD] flex items-center justify-center">
+      <span className="text-[#7C3AED] font-semibold animate-pulse">잠시만 기다려주세요...</span>
+    </div>
+  );
+}
+
+  return (
+    <div className="min-h-screen bg-[#F8F9FD] flex flex-col items-center justify-start px-4 py-8 text-[#333333]">
+      
+      {/* 1. 비로그인 상태 */}
+      {!isLoggedIn ? (
+        <div className="w-full max-w-md flex flex-col gap-6 mt-12">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-[#5B21B6]">인플루언서 리워드 조회</h1>
+            <p className="text-sm text-[#A78BFA] mt-1">이름과 연락처를 입력하여 적립금을 확인하세요.</p>
+          </div>
+
+          <form onSubmit={handleLoginSubmit} className="bg-white border border-[#EDE9FE] rounded-3xl p-6 shadow-sm flex flex-col gap-5">
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-[#4C1D95] px-1">이름</label>
+              <input
+                type="text"
+                name="name"
+                required
+                value={loginForm.name}
+                onChange={handleInputChange}
+                placeholder="홍길동"
+                className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#C4B5FD]"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-semibold text-[#4C1D95] px-1">연락처</label>
+              <input
+                type="tel"
+                name="phone"
+                required
+                value={loginForm.phone}
+                onChange={handleInputChange}
+                placeholder="숫자만 입력 (예: 01000000000)"
+                className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#C4B5FD]"
+              />
+            </div>
+
+            {errorMessage && <p className="text-xs font-medium text-red-500 px-1">{errorMessage}</p>}
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full py-4 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold rounded-2xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center mt-2 disabled:bg-gray-400"
+            >
+              {isLoading ? '조회 중...' : '적립금 조회하기'}
+            </button>
+          </form>
+        </div>
+      ) : (
+        /* 2. 로그인 상태 (대시보드) */
+        <div className="w-full max-w-lg flex flex-col gap-6">
+          <div className="w-full flex justify-between items-center bg-white border border-[#EDE9FE] rounded-2xl px-5 py-4 shadow-sm">
+            <div>
+              <span className="text-lg font-bold text-[#4C1D95]">{influencerInfo?.name}</span>
+              <span className="text-xs font-semibold bg-[#F5F3FF] text-[#7C3AED] ml-2 px-2 py-0.5 rounded-full font-mono">
+                {influencerInfo?.referralCode}
+              </span>
+            </div>
+            <button onClick={handleLogout} className="text-xs text-[#A78BFA] hover:text-[#7C3AED] underline transition-all">
+              로그아웃
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white border border-[#EDE9FE] rounded-2xl p-4 shadow-sm flex flex-col gap-1 col-span-2">
+              <span className="text-xs font-medium text-[#7C3AED]">현재 보유 잔액 (정산 완료)</span>
+              <span className="text-2xl font-black text-[#5B21B6]">{summary.currentBalance.toLocaleString()} 원</span>
+            </div>
+
+            <div className="bg-[#FAF5FF] border border-[#F3E8FF] rounded-2xl p-4 flex flex-col gap-1">
+              <span className="text-xs font-medium text-[#8B5CF6]">주문 후 결제 대기</span>
+              <span className="text-lg font-bold text-[#7C3AED]">{summary.pendingAmount.toLocaleString()} 원</span>
+            </div>
+
+            <div className="bg-white border border-[#EDE9FE] rounded-2xl p-4 shadow-sm flex flex-col gap-1">
+              <span className="text-xs font-medium text-gray-400">지급 완료 (차감액)</span>
+              <span className="text-lg font-bold text-gray-500">{summary.totalWithdrawn.toLocaleString()} 원</span>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <h3 className="text-sm font-bold text-[#4C1D95] px-1">리워드 변동 내역</h3>
+            <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-1">
+              {logs.length === 0 ? (
+                <div className="text-center py-12 bg-white border border-[#EDE9FE] rounded-2xl text-xs text-gray-400">
+                  아직 발생한 리워드 내역이 없습니다.
+                </div>
+              ) : (
+                logs.map((log) => {
+                  const isEarned = log.type === 'EARNED';
+                  const isPending = log.order_status === 'PENDING';
+
+                  return (
+                    <div key={log.id} className="bg-white border border-[#EDE9FE] rounded-2xl p-4 shadow-sm flex justify-between items-center transition-all hover:border-[#C084FC]">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-gray-400">
+                          {new Date(log.created_at).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' })}
+                        </span>
+                        <span className="text-sm font-medium text-[#333333]">
+                          {log.description || (isEarned ? '굿즈 판매 적립' : '리워드 정산 지급')}
+                        </span>
+                        {isEarned && (
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full w-max ${isPending ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {isPending ? '결제대기' : '적립확정'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-base font-bold ${isEarned ? (isPending ? 'text-amber-500' : 'text-[#7C3AED]') : 'text-gray-500'}`}>
+                          {isEarned ? '+' : '-'}{Number(log.amount).toLocaleString()} 원
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

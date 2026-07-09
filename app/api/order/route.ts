@@ -55,6 +55,11 @@ export async function POST(request: Request) {
     const fileName = `order_${Date.now()}_${randomId}.png`;
 
 
+    
+
+
+
+
     // const { customerName, contact, boardColor, selectedSize, previewUrl, orderType } = await request.json();
 
     const response = await fetch(previewUrl);
@@ -85,6 +90,32 @@ export async function POST(request: Request) {
         order_type: orderType,
         event_code : eventCode
       }]);
+
+    // 2. 인플루언서 코드가 입력되었다면 리워드 로그 생성
+    if (eventCode) {
+      // 코드로 인플루언서 ID 찾기
+      const { data: influencer } = await supabaseClient
+        .from('influencers')
+        .select('id')
+        .eq('referral_code', eventCode)
+        .eq('status', 'APPROVED') // 승인된 인플루언서만
+        .maybeSingle();
+
+      if (influencer) {
+        // 결제 대기 상태(PENDING)로 로그 생성
+        await supabaseClient.from('reward_logs').insert([{
+          influencer_id: influencer.id,
+          //order_id: orderData.id,
+          //amount: orderData.totalPrice * 0.1, // 10% 적립금 계산
+          order_id : 'test',
+          amount: 15000 * 0.1,
+          type: 'EARNED',
+          order_status: 'PENDING', // ★ 최초에는 결제 대기
+          //description: `주문번호 [${orderData.id}] 결제 대기`
+          description: `주문번호 [123456789] 결제 대기`
+        }]);
+      }
+    }
 
     if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
 
