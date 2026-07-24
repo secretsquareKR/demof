@@ -1,10 +1,10 @@
 'use client';
 
 import { supabase } from '@/app/lib/supabase';
-
 import React, { useState } from 'react';
 // ⚠️ 기존 프로젝트의 supabaseClient가 위치한 경로로 매칭해주세요.
-
+import Image from "next/image";
+import Link from "next/link";
 
 export default function InfluencerApplyPage() {
   const [formData, setFormData] = useState({
@@ -151,11 +151,27 @@ export default function InfluencerApplyPage() {
   return (
     <div className="min-h-screen bg-[#F8F9FD] flex flex-col items-center justify-start px-4 py-8 text-[#333333]">
       
+      <div className="flex justify-start">
+        <Link href="/" >
+            <Image
+            src="/images/dimof-logo.png"
+            alt="디모프 로고"
+            width={110}
+            height={36}
+            priority
+          />
+      </Link>
+      
+      
+      </div>
+
       {/* 헤더 섹션 */}
       <div className="w-full max-w-md text-left mb-6 px-1">
-        <h1 className="text-2xl font-bold text-[#5B21B6]">인플루언서 리워드 신청</h1>
+        <br>
+      </br>
+        <h1 className="text-2xl font-bold text-[#000000]">인플루언서 리워드 신청</h1>
         <p className="text-sm text-[#A78BFA] mt-1">
-          인플루언서코드를 입력해서 주문한 제품 가격의 10%를 적립해드립니다.
+          인플루언서 코드를 입력한 주문의 결제금액 10%를 적립해드립니다.
         </p>
       </div>
 
@@ -164,13 +180,13 @@ export default function InfluencerApplyPage() {
         onSubmit={handleSubmit}
         className="w-full max-w-md bg-white border border-[#EDE9FE] rounded-3xl p-6 shadow-sm flex flex-col gap-6"
       >
-        <div className="flex justify-between items-center border-b border-[#F5F3FF] pb-3">
-          <span className="text-base font-semibold text-[#6D28D9]">신청자 정보 입력</span>
+        <div className="flex justify-between items-center border-[#F5F3FF] pb-3">
+          <span className="text-base font-semibold text-[#000000]">신청자 정보 입력</span>
         </div>
 
         {/* 이름 입력 (최대 15자) */}
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-[#4C1D95] px-1">이름</label>
+          <label className="text-sm font-semibold text-[#000000] px-1">이름</label>
           <input
             type="text"
             name="name"
@@ -180,13 +196,13 @@ export default function InfluencerApplyPage() {
             value={formData.name}
             onChange={handleChange}
             placeholder="홍길동 (최대 15자)"
-            className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#C4B5FD] disabled:bg-gray-50"
+            className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#aaaaaa] disabled:bg-gray-50"
           />
         </div>
 
         {/* 연락처 입력 (숫자만 가능) */}
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-[#4C1D95] px-1">연락처</label>
+          <label className="text-sm font-semibold text-[#000000] px-1">연락처</label>
           <input
             type="tel"
             name="phone"
@@ -194,30 +210,30 @@ export default function InfluencerApplyPage() {
             disabled={isLoading}
             value={formData.phone}
             onChange={handleChange}
-            placeholder="숫자만 입력해 주세요 (예: 01000000000)"
-            className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#C4B5FD] disabled:bg-gray-50"
+            placeholder="숫자만 입력해 주세요 (예: 01012345678)"
+            className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#aaaaaa] disabled:bg-gray-50"
           />
         </div>
 
         {/* SNS 채널 링크 입력 */}
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-[#4C1D95] px-1">SNS 채널 주소</label>
+          <label className="text-sm font-semibold text-[#000000] px-1">SNS 채널 주소</label> 
           <input
             name="snsChannel"
             required
             disabled={isLoading}
             value={formData.snsChannel}
             onChange={handleChange}
-            placeholder="https://instagram.com/your_id"
-            className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#C4B5FD] disabled:bg-gray-50"
+            placeholder="@dimof_official 또는 네이버블로그 주소"
+            className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#aaaaaa] disabled:bg-gray-50"
           />
         </div>
 
         {/* 희망 인플루언서 코드 입력 (4~8자) */}
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center px-1">
-            <label className="text-sm font-semibold text-[#4C1D95]">희망 인플루언서 코드</label>
-            <span className="text-xs text-[#A78BFA]">영문/숫자 4~8자리</span>
+            <label className="text-sm font-semibold text-[#000000]">희망 인플루언서 코드</label>
+            <span className="text-xs text-[#A78BFA]">영문 숫자 혼합 4~8자리</span>
           </div>
           <input
             type="text"
@@ -228,7 +244,7 @@ export default function InfluencerApplyPage() {
             value={formData.referralCode}
             onChange={handleChange}
             placeholder="예: GOODSHOP"
-            className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#C4B5FD] tracking-wider font-mono disabled:bg-gray-50"
+            className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#aaaaaa] tracking-wider font-mono disabled:bg-gray-50"
           />
         </div>
 
@@ -243,8 +259,8 @@ export default function InfluencerApplyPage() {
             className="w-5 h-5 rounded-md border-[#E9E3FF] text-[#7C3AED] focus:ring-[#C084FC] transition-all accent-[#7C3AED] mt-0.5 cursor-pointer disabled:opacity-50"
           />
           <label htmlFor="privacyAgreement" className="text-xs text-[#4C1D95] font-medium leading-relaxed cursor-pointer">
-            <span className="text-[#7C3AED] font-bold">[필수]</span> 개인정보 수집 및 이용 동의
-            <p className="text-[#9333EA] font-normal text-[11px] mt-0.5">
+            <span className="text-[#8B5CF6] font-bold">[필수]</span> 개인정보 수집 및 이용 동의
+            <p className="text-[#666666] font-normal text-[11px] mt-0.5">
               수집 목적: 인플루언서 리워드 정산 및 본인 확인<br />
               수집 항목: 이름, 연락처, SNS 채널 주소
             </p>
@@ -259,7 +275,7 @@ export default function InfluencerApplyPage() {
         {/* 안내 문구 */}
         <div className="bg-[#FAF5FF] rounded-2xl p-4 border border-[#F3E8FF] text-xs text-[#7C3AED] leading-relaxed">
           <p className="font-semibold mb-1">📢 필독 및 안내사항</p>
-          <ul className="list-disc list-inside space-y-1 text-[#8B5CF6]">
+          <ul className="list-disc list-inside space-y-1 text-[#4817b9]">
             <li>제출하신 인플루언서 코드는 중복 검사 및 내부 검토 후 최종 승인됩니다.</li>
             <li>부적절한 단어나 타 브랜드를 사칭하는 코드는 반려될 수 있습니다.</li>
             <li>포인트 정산 및 내역 조사는 입력하신 이름과 연락처를 통해 진행됩니다.</li>
@@ -275,7 +291,7 @@ export default function InfluencerApplyPage() {
           {isLoading ? (
             <span className="animate-pulse">신청 처리 중...</span>
           ) : (
-            '리워드 신청하기'
+            '리워드 코드 신청하기'
           )}
         </button>
       </form>

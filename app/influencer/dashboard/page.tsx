@@ -1,6 +1,8 @@
 'use client';
 
 import { supabase } from '@/app/lib/supabase';
+import Image from "next/image";
+import Link from "next/link";
 import React, { useEffect, useState } from 'react'; // 💡 useEffect 추가
 
 interface RewardLog {
@@ -164,19 +166,35 @@ export default function InfluencerDashboard() {
 }
 
   return (
+
     <div className="min-h-screen bg-[#F8F9FD] flex flex-col items-center justify-start px-4 py-8 text-[#333333]">
+      <div className="flex justify-start">
+        <Link href="/" >
+            <Image
+            src="/images/dimof-logo.png"
+            alt="디모프 로고"
+            width={110}
+            height={36}
+            priority
+          />
+      </Link>
+      <br>
+      </br>
+      
+      </div>
+      
       
       {/* 1. 비로그인 상태 */}
       {!isLoggedIn ? (
         <div className="w-full max-w-md flex flex-col gap-6 mt-12">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-[#5B21B6]">인플루언서 리워드 조회</h1>
+            <h1 className="text-2xl font-bold text-[#000000]">인플루언서 리워드 조회</h1>
             <p className="text-sm text-[#A78BFA] mt-1">이름과 연락처를 입력하여 적립금을 확인하세요.</p>
           </div>
 
           <form onSubmit={handleLoginSubmit} className="bg-white border border-[#EDE9FE] rounded-3xl p-6 shadow-sm flex flex-col gap-5">
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-[#4C1D95] px-1">이름</label>
+              <label className="text-sm font-semibold text-[#000000] px-1">이름</label>
               <input
                 type="text"
                 name="name"
@@ -184,12 +202,12 @@ export default function InfluencerDashboard() {
                 value={loginForm.name}
                 onChange={handleInputChange}
                 placeholder="홍길동"
-                className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#C4B5FD]"
+                className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#aaaaaa]"
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <label className="text-sm font-semibold text-[#4C1D95] px-1">연락처</label>
+              <label className="text-sm font-semibold text-[#000000] px-1">연락처</label>
               <input
                 type="tel"
                 name="phone"
@@ -197,7 +215,7 @@ export default function InfluencerDashboard() {
                 value={loginForm.phone}
                 onChange={handleInputChange}
                 placeholder="숫자만 입력 (예: 01000000000)"
-                className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#C4B5FD]"
+                className="w-full px-4 py-3 border border-[#E9E3FF] rounded-2xl focus:outline-none focus:ring-2 focus:ring-[#C084FC] focus:border-transparent transition-all placeholder:text-[#aaaaaa]"
               />
             </div>
 
@@ -206,7 +224,7 @@ export default function InfluencerDashboard() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 bg-[#7C3AED] hover:bg-[#6D28D9] text-white font-semibold rounded-2xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center mt-2 disabled:bg-gray-400"
+              className="w-full py-4 bg-[#7C3AED] hover:bg-[#6D28D9] text-white  font-semibold rounded-2xl shadow-md transition-all active:scale-[0.98] flex items-center justify-center mt-2 disabled:bg-gray-400"
             >
               {isLoading ? '조회 중...' : '적립금 조회하기'}
             </button>
@@ -214,7 +232,12 @@ export default function InfluencerDashboard() {
         </div>
       ) : (
         /* 2. 로그인 상태 (대시보드) */
+        
+        
         <div className="w-full max-w-lg flex flex-col gap-6">
+          <br>
+      </br>
+      
           <div className="w-full flex justify-between items-center bg-white border border-[#EDE9FE] rounded-2xl px-5 py-4 shadow-sm">
             <div>
               <span className="text-lg font-bold text-[#4C1D95]">{influencerInfo?.name}</span>
