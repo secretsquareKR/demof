@@ -15,6 +15,15 @@ interface RewardLog {
   created_at: string;
 }
 
+interface RewardVisual {
+  imageSrc: string;
+  imageAlt: string;
+  title: string;
+  description: string;
+  badge: string;
+}
+
+
 export default function InfluencerDashboard() {
   const [loginForm, setLoginForm] = useState({ name: '', phone: '' });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -26,6 +35,13 @@ export default function InfluencerDashboard() {
   const [summary, setSummary] = useState({ pendingAmount: 0, totalEarned: 0, totalWithdrawn: 0, currentBalance: 0 });
   const [logs, setLogs] = useState<RewardLog[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+
+
+
+
+
+  
 
    // 💡 [추가] 2. 로그인 성공 데이터를 바탕으로 Supabase에서 적립금 정보를 긁어오는 함수 분리
   const loadRewardData = async (influencer: { id: string; name: string; referralCode: string }) => {
@@ -157,14 +173,113 @@ export default function InfluencerDashboard() {
     setLoginForm({ name: '', phone: '' });
   };
 
+  const getRewardVisual = (): RewardVisual => {
+  const completedEarnedLogs = logs.filter(
+    (log) =>
+      log.type === 'EARNED' &&
+      log.order_status === 'COMPLETED'
+  );
+
+  const hasAnyRewardHistory =
+    summary.totalEarned > 0 ||
+    summary.totalWithdrawn > 0 ||
+    summary.pendingAmount > 0;
+
+  const hasWithdrawnAll =
+    summary.totalWithdrawn > 0 &&
+    summary.currentBalance <= 0 &&
+    summary.pendingAmount <= 0;
+
+  // 5. 과거에 적립금이 있었지만 전부 인출한 경우
+  if (hasWithdrawnAll) {
+    return {
+      imageSrc: '/images/reward/reward-empty.png',
+      imageAlt: '리워드를 모두 인출해 텅장이 된 고양이',
+      badge: '텅장이 되었어요',
+      title: '리워드를 모두 인출했어요',
+      description: '다시 홍보를 시작하고 새로운 리워드를 모아보세요.',
+    };
+  }
+
+  // 1. 적립 및 결제 대기 내역이 전혀 없는 경우
+  if (!hasAnyRewardHistory) {
+    return {
+      imageSrc: '/images/reward/reward-start.png',
+      imageAlt: '아직 리워드 적립을 시작하지 않은 고양이',
+      badge: '아직 출발 전이에요',
+      title: '첫 리워드를 기다리고 있어요',
+      description: '리워드 코드를 공유하면 결제금액의 10%가 적립됩니다.',
+    };
+  }
+
+  // 4. 현재 사용할 수 있는 보유 잔액이 30,000원 이상인 경우
+  if (summary.currentBalance >= 30000) {
+    return {
+      imageSrc: '/images/reward/reward-rich.png',
+      imageAlt: '리워드가 많이 쌓여 부자가 된 고양이',
+      badge: 'FLEX',
+      title: '리워드가 많이 모였어요',
+      description: '꾸준한 홍보 덕분에 리워드가 풍성하게 쌓였습니다.',
+    };
+  }
+
+  // 2. 완료된 첫 적립 내역이 딱 한 건인 경우
+  if (
+    completedEarnedLogs.length === 1 &&
+    summary.currentBalance > 0
+  ) {
+    return {
+      imageSrc: '/images/reward/reward-first.png',
+      imageAlt: '첫 수익이 생겨 기뻐하는 고양이',
+      badge: '첫 수익이 생겼어요',
+      title: '첫 리워드 적립을 축하해요',
+      description: '첫 주문이 완료되어 사용할 수 있는 리워드가 생겼습니다.',
+    };
+  }
+
+  // 3. 적립 내역이 여러 건이거나 결제 대기 금액이 존재하는 경우
+  return {
+    imageSrc: '/images/reward/reward-growing.png',
+    imageAlt: '리워드 동전이 계속 쌓이고 있는 고양이',
+    badge: '열심히 홍보 중..!',
+    title: '리워드가 차곡차곡 쌓이고 있어요',
+    description:
+      summary.pendingAmount > 0
+        ? `${summary.pendingAmount.toLocaleString()}원의 리워드가 결제 완료를 기다리고 있습니다.`
+        : '꾸준한 코드 공유로 리워드가 계속 적립되고 있습니다.',
+  };
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
   if (isInitialLoading) {
+    
   return (
     <div className="min-h-screen bg-[#F8F9FD] flex items-center justify-center">
       <span className="text-[#7C3AED] font-semibold animate-pulse">잠시만 기다려주세요...</span>
     </div>
   );
 }
-
+  const rewardVisual = isLoggedIn ? getRewardVisual() : null;
   return (
 
     <div className="min-h-screen bg-[#F8F9FD] flex flex-col items-center justify-start px-4 py-8 text-[#333333]">
@@ -249,6 +364,39 @@ export default function InfluencerDashboard() {
               로그아웃
             </button>
           </div>
+
+          {rewardVisual && (
+            <section className="relative overflow-hidden bg-white border border-[#EDE9FE] rounded-3xl shadow-sm">
+              <div className="absolute top-0 left-0 w-32 h-32 bg-[#F3E8FF] rounded-full blur-3xl opacity-70 -translate-x-1/2 -translate-y-1/2" />
+
+              <div className="absolute bottom-0 right-0 w-36 h-36 bg-[#FCE7F3] rounded-full blur-3xl opacity-50 translate-x-1/2 translate-y-1/2" />
+
+              <div className="relative px-5 pt-5">
+                <span className="inline-flex items-center rounded-full bg-[#F5F3FF] px-3 py-1.5 text-[11px] font-bold text-[#7C3AED]">
+                  {rewardVisual.badge}
+                </span>
+
+                <h2 className="mt-3 text-xl font-black tracking-[-0.04em] text-[#2D2140]">
+                  {rewardVisual.title}
+                </h2>
+
+                <p className="mt-1.5 text-xs leading-5 text-[#8D8797]">
+                  {rewardVisual.description}
+                </p>
+              </div>
+
+              <div className="relative mt-2 w-full aspect-[4/3]">
+                <Image
+                  src={rewardVisual.imageSrc}
+                  alt={rewardVisual.imageAlt}
+                  fill
+                  sizes="(max-width: 640px) 100vw, 512px"
+                  className="object-contain"
+                  priority
+                />
+              </div>
+            </section>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-white border border-[#EDE9FE] rounded-2xl p-4 shadow-sm flex flex-col gap-1 col-span-2">
