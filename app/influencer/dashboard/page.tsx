@@ -10,10 +10,20 @@ interface RewardLog {
   order_id: string | null;
   amount: number;
   type: 'EARNED' | 'WITHDRAWN';
-  order_status: 'PENDING' | 'COMPLETED';
+  order_status: 'PENDING' | 'PAID' |'COMPLETED' |'CANCELLED';
   description: string | null;
   created_at: string;
 }
+
+//PENDING 시안접수
+//PAID   결제확인
+//COMPLETED 리워드 확정
+//CANCELLED 주문취소
+
+
+
+
+
 
 interface RewardVisual {
   imageSrc: string;
@@ -32,7 +42,8 @@ export default function InfluencerDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const [summary, setSummary] = useState({ pendingAmount: 0, totalEarned: 0, totalWithdrawn: 0, currentBalance: 0 });
+  //const [summary, setSummary] = useState({ pendingAmount: 0, totalEarned: 0, totalWithdrawn: 0, currentBalance: 0 });
+  const [summary, setSummary] = useState({ designPendingAmount: 0, paidPendingAmount: 0, availableAmount: 0, totalWithdrawn: 0, currentBalance: 0 });
   const [logs, setLogs] = useState<RewardLog[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
@@ -55,26 +66,49 @@ export default function InfluencerDashboard() {
 
       if (logError) throw logError;
 
-      let pending = 0;
-      let earned = 0;
+      // let pending = 0;
+      // let earned = 0;
+      // let withdrawn = 0;
+      let designPending = 0;
+      let paidPending = 0;
+      let completed = 0;
       let withdrawn = 0;
+
 
       const rawLogs: RewardLog[] = rewardLogs || [];
 
       rawLogs.forEach((log) => {
-        if (log.type === 'EARNED') {
-          if (log.order_status === 'PENDING') {
-            pending += Number(log.amount);
-          } else if (log.order_status === 'COMPLETED') {
-            earned += Number(log.amount);
+          if (log.type === "EARNED") {
+
+              switch (log.order_status) {
+
+                  case "PENDING":
+                      designPending += Number(log.amount);
+                      break;
+
+                  case "PAID":
+                      paidPending += Number(log.amount);
+                      break;
+
+                  case "COMPLETED":
+                      completed += Number(log.amount);
+                      break;
+              }
+
+          } else if (log.type === "WITHDRAWN") {
+              withdrawn += Number(log.amount);
           }
-        } else if (log.type === 'WITHDRAWN') {
-          withdrawn += Number(log.amount);
-        }
       });
 
       setInfluencerInfo(influencer);
-      setSummary({ pendingAmount: pending, totalEarned: earned, totalWithdrawn: withdrawn, currentBalance: earned - withdrawn });
+      // setSummary({ pendingAmount: pending, totalEarned: earned, totalWithdrawn: withdrawn, currentBalance: earned - withdrawn });
+      setSummary({
+          designPendingAmount: designPending,
+          paidPendingAmount: paidPending,
+          availableAmount: completed,
+          totalWithdrawn: withdrawn,
+          currentBalance: completed - withdrawn
+      });
       setLogs(rawLogs);
       setIsLoggedIn(true);
     } catch (e) {
@@ -179,21 +213,48 @@ export default function InfluencerDashboard() {
       log.type === 'EARNED' &&
       log.order_status === 'COMPLETED'
   );
+  const pendingLogs = logs.filter(
+      log =>
+          log.type === "EARNED" &&
+          log.order_status === "PENDING"
+  );
+
+  const paidLogs = logs.filter(
+      log =>
+          log.type === "EARNED" &&
+          log.order_status === "PAID"
+  );
 
   const hasAnyRewardHistory =
-    summary.totalEarned > 0 ||
+    summary.availableAmount > 0 ||
     summary.totalWithdrawn > 0 ||
-    summary.pendingAmount > 0;
+    summary.designPendingAmount > 0;
 
   const hasWithdrawnAll =
     summary.totalWithdrawn > 0 &&
     summary.currentBalance <= 0 &&
-    summary.pendingAmount <= 0;
+    summary.designPendingAmount <= 0;
+
+  //리워드 코드로 처음 시안접수가 발생한 경우
+  if (
+    pendingLogs.length > 0 &&
+    completedEarnedLogs.length === 0 &&
+    paidLogs.length === 0
+  ) {
+      return {
+          imageSrc: "/images/reward/reward-use-code.jpg",
+          imageAlt: "리워드 코드가 처음 사용된 고양이",
+          badge: "첫 사용!",
+          title: "리워드 코드가 사용되었어요!",
+          description:
+              "고객이 시안을 접수했습니다. 주문이 완료되면 리워드가 적립됩니다."
+      };
+  }
 
   // 5. 과거에 적립금이 있었지만 전부 인출한 경우
   if (hasWithdrawnAll) {
     return {
-      imageSrc: '/images/reward/reward-empty.png',
+      imageSrc: '/images/reward/reward-empty.jpg',
       imageAlt: '리워드를 모두 인출해 텅장이 된 고양이',
       badge: '텅장이 되었어요',
       title: '리워드를 모두 인출했어요',
@@ -204,7 +265,7 @@ export default function InfluencerDashboard() {
   // 1. 적립 및 결제 대기 내역이 전혀 없는 경우
   if (!hasAnyRewardHistory) {
     return {
-      imageSrc: '/images/reward/reward-start.png',
+      imageSrc: '/images/reward/reward-start.jpg',
       imageAlt: '아직 리워드 적립을 시작하지 않은 고양이',
       badge: '아직 출발 전이에요',
       title: '첫 리워드를 기다리고 있어요',
@@ -215,7 +276,7 @@ export default function InfluencerDashboard() {
   // 4. 현재 사용할 수 있는 보유 잔액이 30,000원 이상인 경우
   if (summary.currentBalance >= 30000) {
     return {
-      imageSrc: '/images/reward/reward-rich.png',
+      imageSrc: '/images/reward/reward-rich.jpg',
       imageAlt: '리워드가 많이 쌓여 부자가 된 고양이',
       badge: 'FLEX',
       title: '리워드가 많이 모였어요',
@@ -229,7 +290,7 @@ export default function InfluencerDashboard() {
     summary.currentBalance > 0
   ) {
     return {
-      imageSrc: '/images/reward/reward-first.png',
+      imageSrc: '/images/reward/reward-first.jpg',
       imageAlt: '첫 수익이 생겨 기뻐하는 고양이',
       badge: '첫 수익이 생겼어요',
       title: '첫 리워드 적립을 축하해요',
@@ -239,13 +300,13 @@ export default function InfluencerDashboard() {
 
   // 3. 적립 내역이 여러 건이거나 결제 대기 금액이 존재하는 경우
   return {
-    imageSrc: '/images/reward/reward-growing.png',
+    imageSrc: '/images/reward/reward-growing.jpg',
     imageAlt: '리워드 동전이 계속 쌓이고 있는 고양이',
     badge: '열심히 홍보 중..!',
     title: '리워드가 차곡차곡 쌓이고 있어요',
     description:
-      summary.pendingAmount > 0
-        ? `${summary.pendingAmount.toLocaleString()}원의 리워드가 결제 완료를 기다리고 있습니다.`
+      summary.designPendingAmount > 0
+        ? `${summary.designPendingAmount.toLocaleString()}원의 리워드가 결제 완료를 기다리고 있습니다.`
         : '꾸준한 코드 공유로 리워드가 계속 적립되고 있습니다.',
   };
 };
@@ -405,8 +466,8 @@ export default function InfluencerDashboard() {
             </div>
 
             <div className="bg-[#FAF5FF] border border-[#F3E8FF] rounded-2xl p-4 flex flex-col gap-1">
-              <span className="text-xs font-medium text-[#8B5CF6]">주문 후 결제 대기</span>
-              <span className="text-lg font-bold text-[#7C3AED]">{summary.pendingAmount.toLocaleString()} 원</span>
+              <span className="text-xs font-medium text-[#8B5CF6]">시안접수 후 결제 대기</span>
+              <span className="text-lg font-bold text-[#7C3AED]">{summary.designPendingAmount.toLocaleString()} 원</span>
             </div>
 
             <div className="bg-white border border-[#EDE9FE] rounded-2xl p-4 shadow-sm flex flex-col gap-1">
