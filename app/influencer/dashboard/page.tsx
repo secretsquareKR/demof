@@ -9,7 +9,7 @@ interface RewardLog {
   id: string;
   order_id: string | null;
   amount: number;
-  type: 'EARNED' | 'WITHDRAWN';
+  type: 'EXPECTED' |'EARNED' | 'WITHDRAWN';
   order_status: 'PENDING' | 'PAID' |'COMPLETED' |'CANCELLED';
   description: string | null;
   created_at: string;
@@ -177,7 +177,7 @@ export default function InfluencerDashboard() {
       }
 
       if (influencer.status === 'REJECTED') {
-        setErrorMessage('신청이 반려된 계정입니다. 고객센터로 문의해 주세요.');
+        setErrorMessage('신청이 반려된 계정입니다. 고객센터로 문의해 주세요. 010-2777-4231');
         setIsLoading(false);
         return;
       }
