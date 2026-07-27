@@ -8,8 +8,9 @@ import React, { useEffect, useState } from 'react'; // 💡 useEffect 추가
 interface RewardLog {
   id: string;
   order_id: string | null;
+  naver_order_id: string | null;
   amount: number;
-  type: 'EXPECTED' |'EARNED' | 'WITHDRAWN';
+  type: 'EARNED' | 'WITHDRAWN';
   order_status: 'PENDING' | 'PAID' |'COMPLETED' |'CANCELLED';
   description: string | null;
   created_at: string;
@@ -63,6 +64,10 @@ export default function InfluencerDashboard() {
         .select('*')
         .eq('influencer_id', influencers.id)
         .order('created_at', { ascending: false });
+
+        console.log('로그인한 인플루언서:', influencers);
+          console.log('조회된 rewardLogs:', rewardLogs);
+          console.log('rewardLogs 조회 오류:', logError);
 
       if (logError) throw logError;
 

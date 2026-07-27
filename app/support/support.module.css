@@ -1,0 +1,492 @@
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #f8f6ff;
+  color: #17111e;
+}
+
+.container {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 620px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 0 18px 52px;
+}
+
+.backgroundCircleOne,
+.backgroundCircleTwo {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(2px);
+}
+
+.backgroundCircleOne {
+  top: -120px;
+  right: -100px;
+  width: 290px;
+  height: 290px;
+  background: rgba(139, 75, 255, 0.13);
+}
+
+.backgroundCircleTwo {
+  bottom: 80px;
+  left: -150px;
+  width: 310px;
+  height: 310px;
+  background: rgba(221, 94, 203, 0.08);
+}
+
+.header {
+  height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  color: #16101d;
+  font-size: 27px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.07em;
+  text-decoration: none;
+}
+
+.homeButton {
+  min-height: 38px;
+  padding: 0 14px 0 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #6f35da;
+  background: #ffffff;
+  border: 1px solid #e5daf8;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  box-shadow: 0 5px 16px rgba(82, 44, 142, 0.07);
+}
+
+.homeButton svg {
+  width: 16px;
+  height: 16px;
+}
+
+.hero {
+  position: relative;
+  padding: 39px 26px 42px;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at 100% 0,
+      rgba(149, 91, 255, 0.2),
+      transparent 38%
+    ),
+    radial-gradient(
+      circle at 0 100%,
+      rgba(221, 96, 214, 0.12),
+      transparent 35%
+    ),
+    #ffffff;
+  border: 1px solid #e3d8f7;
+  border-radius: 30px;
+  box-shadow: 0 16px 45px rgba(80, 45, 133, 0.09);
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 12px;
+  margin-bottom: 27px;
+  color: #7838f1;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #dfd0fb;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+
+.heroIcon {
+  position: absolute;
+  top: 37px;
+  right: 29px;
+  width: 66px;
+  height: 66px;
+  padding: 17px;
+  color: #7a36ef;
+  background: linear-gradient(145deg, #f2e7ff, #e6d2ff);
+  border-radius: 22px;
+  transform: rotate(6deg);
+}
+
+.heroIcon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.title {
+  margin: 0;
+  color: #18121e;
+  font-size: clamp(39px, 8vw, 52px);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.065em;
+}
+
+.title::first-line {
+  color: #17111e;
+}
+
+.description {
+  margin: 21px 0 0;
+  color: #83798b;
+  font-size: 14px;
+  line-height: 1.75;
+  letter-spacing: -0.025em;
+}
+
+.contactSection,
+.companySection,
+.noticeBox {
+  margin-top: 20px;
+}
+
+.sectionTitle {
+  margin: 0 2px 13px;
+  color: #261d2e;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.contactList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.contactCard {
+  position: relative;
+  min-height: 110px;
+  padding: 19px 50px 19px 18px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  color: inherit;
+  background:
+    radial-gradient(
+      circle at 100% 100%,
+      rgba(124, 55, 249, 0.1),
+      transparent 37%
+    ),
+    #ffffff;
+  border: 1px solid #e4daf3;
+  border-radius: 23px;
+  text-decoration: none;
+  box-shadow: 0 8px 25px rgba(73, 40, 121, 0.07);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.contactCard:hover {
+  transform: translateY(-3px);
+  border-color: rgba(124, 55, 249, 0.36);
+  box-shadow: 0 13px 31px rgba(73, 40, 121, 0.12);
+}
+
+.talkCard {
+  background:
+    radial-gradient(
+      circle at 100% 100%,
+      rgba(3, 199, 90, 0.11),
+      transparent 37%
+    ),
+    #ffffff;
+}
+
+.talkCard:hover {
+  border-color: rgba(3, 199, 90, 0.35);
+}
+
+.emailIcon,
+.talkIcon {
+  flex: 0 0 auto;
+  width: 57px;
+  height: 57px;
+  padding: 15px;
+  border-radius: 19px;
+}
+
+.emailIcon {
+  color: #7d36f6;
+  background: #eee2ff;
+}
+
+.talkIcon {
+  color: #02a54c;
+  background: #dcf8e8;
+}
+
+.emailIcon svg,
+.talkIcon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.contactContent {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.contactLabel {
+  margin-bottom: 4px;
+  color: #968b9d;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.contactTitle {
+  color: #211827;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+
+.contactDescription {
+  margin: 6px 0 0;
+  color: #8e8495;
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: -0.02em;
+  word-break: keep-all;
+}
+
+.arrowButton {
+  position: absolute;
+  top: 50%;
+  right: 17px;
+  width: 30px;
+  height: 30px;
+  padding: 7px;
+  color: #8037f6;
+  background: #eee3ff;
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+
+.talkArrow {
+  color: #02a54c;
+  background: #dff8e9;
+}
+
+.arrowButton svg {
+  width: 100%;
+  height: 100%;
+}
+
+.companySection {
+  padding: 23px;
+  background: #ffffff;
+  border: 1px solid #e5dcf0;
+  border-radius: 25px;
+  box-shadow: 0 8px 25px rgba(73, 40, 121, 0.06);
+}
+
+.companyHeading {
+  padding-bottom: 16px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-bottom: 1px solid #eee8f4;
+}
+
+.smallLabel {
+  display: block;
+  margin-bottom: 5px;
+  color: #8c54ed;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.companyHeading h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.companyBadge {
+  padding: 7px 10px;
+  color: #7735e9;
+  background: #eee4ff;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+}
+
+.companyInfo {
+  margin: 0;
+}
+
+.companyRow {
+  min-height: 40px;
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.companyRow dt,
+.companyRow dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.companyRow dt {
+  color: #968c9b;
+}
+
+.companyRow dd {
+  color: #44394a;
+  font-weight: 650;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.companyRow a {
+  color: #7131e5;
+  text-decoration: none;
+}
+
+.noticeBox {
+  padding: 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  background: #f0e8ff;
+  border: 1px solid #dfcff9;
+  border-radius: 21px;
+}
+
+.noticeIcon {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  background: #7d39ef;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.noticeBox strong {
+  display: block;
+  margin: 2px 0 7px;
+  color: #32243e;
+  font-size: 13px;
+}
+
+.noticeBox p {
+  margin: 3px 0;
+  color: #7c6e87;
+  font-size: 11px;
+  line-height: 1.55;
+  word-break: keep-all;
+}
+
+.footer {
+  padding: 33px 0 0;
+  text-align: center;
+}
+
+.footer span {
+  color: #8752e7;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+}
+
+.footer p {
+  margin: 8px 0 0;
+  color: #9a909f;
+  font-size: 11px;
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding-right: 15px;
+    padding-left: 15px;
+  }
+
+  .hero {
+    padding: 34px 23px 37px;
+    border-radius: 26px;
+  }
+
+  .heroIcon {
+    top: 31px;
+    right: 22px;
+    width: 58px;
+    height: 58px;
+    padding: 15px;
+    border-radius: 19px;
+  }
+
+  .eyebrow {
+    margin-bottom: 25px;
+    font-size: 8px;
+  }
+
+  .description {
+    font-size: 13px;
+  }
+
+  .contactCard {
+    min-height: 102px;
+    padding: 16px 45px 16px 15px;
+    gap: 12px;
+    border-radius: 20px;
+  }
+
+  .emailIcon,
+  .talkIcon {
+    width: 51px;
+    height: 51px;
+    padding: 14px;
+    border-radius: 17px;
+  }
+
+  .contactTitle {
+    font-size: 14px;
+  }
+
+  .contactDescription {
+    font-size: 10px;
+  }
+
+  .companySection {
+    padding: 20px;
+    border-radius: 22px;
+  }
+
+  .companyRow {
+    grid-template-columns: 96px minmax(0, 1fr);
+  }
+}

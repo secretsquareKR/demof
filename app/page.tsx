@@ -263,7 +263,8 @@ export default function HomePage() {
 
           <div className={styles.menuList}>
             <MenuCard
-              href="/goods"
+              //href="/goods"
+              href="https://smartstore.naver.com/secretsquare"
               variant="primary"
               icon={<ShoppingBagIcon />}
               title="굿즈 둘러보기"
@@ -271,7 +272,8 @@ export default function HomePage() {
             />
 
             <MenuCard
-              href="/custom"
+              //href="/custom"
+              href="/editor"
               variant="purple"
               icon={<CustomizeIcon />}
               title="굿즈 주문제작 하러가기"
@@ -356,8 +358,8 @@ export default function HomePage() {
           <p>일상 속 작은 즐거움을 만드는 커스텀 굿즈 브랜드</p>
 
           <div className={styles.footerLinks}>
-            <Link href="/terms">이용약관</Link>
-            <Link href="/privacy">개인정보처리방침</Link>
+            {/* <Link href="/terms">이용약관</Link>
+            <Link href="/privacy">개인정보처리방침</Link> */}
             <Link href="/support">고객센터</Link>
           </div>
 
