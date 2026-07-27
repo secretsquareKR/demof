@@ -55,13 +55,13 @@ export default function InfluencerDashboard() {
   
 
    // 💡 [추가] 2. 로그인 성공 데이터를 바탕으로 Supabase에서 적립금 정보를 긁어오는 함수 분리
-  const loadRewardData = async (influencer: { id: string; name: string; referralCode: string }) => {
+  const loadRewardData = async (influencers: { id: string; name: string; referralCode: string }) => {
     try {
       setIsLoading(true);
       const { data: rewardLogs, error: logError } = await supabase
         .from('reward_logs')
         .select('*')
-        .eq('influencer_id', influencer.id)
+        .eq('influencer_id', influencers.id)
         .order('created_at', { ascending: false });
 
       if (logError) throw logError;
@@ -100,7 +100,7 @@ export default function InfluencerDashboard() {
           }
       });
 
-      setInfluencerInfo(influencer);
+      setInfluencerInfo(influencers);
       // setSummary({ pendingAmount: pending, totalEarned: earned, totalWithdrawn: withdrawn, currentBalance: earned - withdrawn });
       setSummary({
           designPendingAmount: designPending,
