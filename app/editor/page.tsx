@@ -17,6 +17,58 @@ const SIZES = [
   { key: '4x3', cols: 4, rows: 3 },
 ];
 
+const BOARD_COLORS = [
+  {
+    name: '블랙',
+    hex: '#1f2937',
+  },
+  {
+    name: '화이트',
+    hex: '#ffffff',
+  },
+  {
+    name: '핑크',
+    hex: '#f9a8d4',
+  },
+  {
+    name: '레드',
+    hex: '#ef4444',
+  },
+  {
+    name: '오렌지',
+    hex: '#f97316',
+  },
+  {
+    name: '옐로우',
+    hex: '#facc15',
+  },
+  {
+    name: '라이트그린',
+    hex: '#97ffc3',
+  },
+  {
+    name: '그린',
+    hex: '#047c00',
+  },
+  {
+    name: '블루',
+    hex: '#2563eb',
+  },
+  {
+    name: '스카이블루',
+    hex: '#38bdf8',
+  },
+  {
+    name: '그레이',
+    hex: '#9ca3af',
+  },
+  {
+    name: '네이비',
+    hex: '#00006e',
+  },
+];
+
+
 export default function Editor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -198,6 +250,7 @@ export default function Editor() {
     setShowOrderForm(false);
     setPreviewImageUrl(null);
   };
+  
 
   useEffect(() => {
     if (!canvasRef.current || !containerRef.current) return;
@@ -391,6 +444,15 @@ export default function Editor() {
     eventCode: '',
   });
 
+  useEffect(() => {
+  if (selectedSize !== '3x3' && orderData.boardColor === '투명') {
+    setOrderData((prev) => ({
+      ...prev,
+      boardColor: '블랙',
+    }));
+  }
+}, [selectedSize, orderData.boardColor]);
+
   const handleDesignComplete = () => {
     const canvas = fabricCanvas.current;
     if (!canvas) return;
@@ -560,6 +622,8 @@ export default function Editor() {
       desc: '빨간 테두리가 실제 각인되는 영역입니다. 키캡 경계선을 고려하셔서 이미지 위치를 조정해주세요.',
     },
   ];
+
+
 
   return (
     <div className="min-h-screen bg-[#faf8ff] text-gray-900 dark:bg-[#faf8ff] dark:text-gray-900 px-4 py-6">
@@ -858,22 +922,122 @@ export default function Editor() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-700 mb-2">보드 색상</label>
-                    <div className="flex flex-wrap gap-4">
-                      {['블랙', '화이트', '핑크', ...(selectedSize === '3x3' ? ['투명'] : [])].map((color) => (
-                        <label key={color} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-700 cursor-pointer">
-                          <input
-                            type="radio"
-                            name="boardColor"
-                            value={color}
-                            checked={orderData.boardColor === color}
-                            onChange={(e) => setOrderData({ ...orderData, boardColor: e.target.value })}
-                            className="w-4 h-4 text-violet-500 border-purple-200 focus:ring-violet-400"
-                          />
-                          {color}
-                        </label>
-                      ))}
+                    <div className="mb-3 flex items-center justify-between">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-700">
+                        보드 색상
+                      </label>
+
+                      <span className="text-xs font-medium text-violet-500">
+                        선택: {orderData.boardColor}
+                      </span>
                     </div>
+
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {[
+                        ...BOARD_COLORS,
+                        ...(selectedSize === '3x3'
+                          ? [
+                              {
+                                name: '투명',
+                                hex: 'transparent',
+                              },
+                            ]
+                          : []),
+                      ].map((color) => {
+                        const isSelected = orderData.boardColor === color.name;
+                        const isTransparent = color.name === '투명';
+
+                        return (
+                          <label
+                            key={color.name}
+                            className={`
+                              relative flex cursor-pointer flex-col items-center justify-center
+                              gap-2 rounded-xl border px-2 py-3 transition-all
+                              ${
+                                isSelected
+                                  ? 'border-violet-500 bg-violet-50 shadow-sm ring-1 ring-violet-400'
+                                  : 'border-purple-100 bg-white hover:border-violet-300 hover:bg-purple-50/30'
+                              }
+                            `}
+                          >
+                            <input
+                              type="radio"
+                              name="boardColor"
+                              value={color.name}
+                              checked={isSelected}
+                              onChange={(e) =>
+                                setOrderData((prev) => ({
+                                  ...prev,
+                                  boardColor: e.target.value,
+                                }))
+                              }
+                              className="sr-only"
+                            />
+
+                            <span
+                              className={`
+                                relative flex h-8 w-8 items-center justify-center
+                                overflow-hidden rounded-full border shadow-sm
+                                ${
+                                  color.name === '화이트'
+                                    ? 'border-gray-300'
+                                    : 'border-black/10'
+                                }
+                              `}
+                              style={
+                                isTransparent
+                                  ? {
+                                      backgroundImage:
+                                        'linear-gradient(45deg, #e5e7eb 25%, transparent 25%), linear-gradient(-45deg, #e5e7eb 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e5e7eb 75%), linear-gradient(-45deg, transparent 75%, #e5e7eb 75%)',
+                                      backgroundSize: '10px 10px',
+                                      backgroundPosition:
+                                        '0 0, 0 5px, 5px -5px, -5px 0px',
+                                      backgroundColor: '#ffffff',
+                                    }
+                                  : {
+                                      backgroundColor: color.hex,
+                                    }
+                              }
+                            >
+                              {isSelected && (
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 20 20"
+                                  fill="none"
+                                  stroke={
+                                    color.name === '화이트' ||
+                                    color.name === '옐로우' ||
+                                    isTransparent
+                                      ? '#7c3aed'
+                                      : '#ffffff'
+                                  }
+                                  strokeWidth="2.5"
+                                  className="h-4 w-4"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    d="M4 10.5 8 14l8-8"
+                                  />
+                                </svg>
+                              )}
+                            </span>
+
+                            <span
+                              className={`text-xs font-semibold ${
+                                isSelected ? 'text-violet-700' : 'text-gray-700'
+                              }`}
+                            >
+                              {color.name}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <p className="mt-2 text-xs leading-5 text-gray-400">
+                      실제 제품 색상은 화면 설정과 조명에 따라 조금 다르게 보일 수 있습니다.
+                    </p>
                   </div>
 
                   <div>
