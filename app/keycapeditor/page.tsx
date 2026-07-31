@@ -34,7 +34,7 @@ const KEYCAP_COLORS: Array<{
 ];
 
 const FONT_OPTIONS = [
-  { key: 'Pretendard', label: '고딕체', sample: '깔끔한 고딕', weight: 600 },
+  { key: 'Pretendard', label: '고딕체', sample: '깔끔한 고딕', weight: 100 },
   { key: 'MitmiFont', label: '둥근체', sample: '말랑한 둥근체', weight: 400 },
   { key: 'BinggreIi', label: '개성체', sample: '개성있는 글씨', weight: 700 },
 ] as const;
@@ -84,6 +84,30 @@ const markAsGuideObject = (
 
 const isDesignObject = (obj: fabric.FabricObject) => !isGuideObject(obj);
 
+const createSelectiveRoundedRectPath = (
+  width: number,
+  height: number,
+  radii: { topLeft: number; topRight: number; bottomRight: number; bottomLeft: number },
+) => {
+  const tl = Math.max(0, Math.min(radii.topLeft, width / 2, height / 2));
+  const tr = Math.max(0, Math.min(radii.topRight, width / 2, height / 2));
+  const br = Math.max(0, Math.min(radii.bottomRight, width / 2, height / 2));
+  const bl = Math.max(0, Math.min(radii.bottomLeft, width / 2, height / 2));
+
+  return [
+    `M ${tl} 0`,
+    `H ${width - tr}`,
+    tr > 0 ? `Q ${width} 0 ${width} ${tr}` : `L ${width} 0`,
+    `V ${height - br}`,
+    br > 0 ? `Q ${width} ${height} ${width - br} ${height}` : `L ${width} ${height}`,
+    `H ${bl}`,
+    bl > 0 ? `Q 0 ${height} 0 ${height - bl}` : `L 0 ${height}`,
+    `V ${tl}`,
+    tl > 0 ? `Q 0 0 ${tl} 0` : 'L 0 0',
+    'Z',
+  ].join(' ');
+};
+
 const getObjectKind = (obj: fabric.FabricObject | null | undefined) => {
   if (!obj) return null;
   if (obj instanceof fabric.IText || obj instanceof fabric.Textbox || obj instanceof fabric.Text) {
@@ -124,8 +148,11 @@ export default function KeycapCustomEditorPage() {
   const [fontFamily, setFontFamily] = useState('Pretendard');
   const [textColor, setTextColor] = useState('#111111');
   const [fontSize, setFontSize] = useState(42);
-  const [fontWeight, setFontWeight] = useState(600);
+  const [fontWeight, setFontWeight] = useState(400);
+  const [letterSpacing, setLetterSpacing] = useState(0);
   const [textAngle, setTextAngle] = useState(0);
+  const [isAddingText, setIsAddingText] = useState(false);
+  const [showTextEditor, setShowTextEditor] = useState(false);
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [isConvertingHeic, setIsConvertingHeic] = useState(false);
@@ -217,52 +244,24 @@ export default function KeycapCustomEditorPage() {
         gapPx,
       };
 
-      // 편집 가능 영역 밖의 회색 음영
-      // Path의 evenodd 구멍은 Fabric/브라우저 조합에 따라 내부까지 덮을 수 있으므로
-      // 작업 영역을 침범하지 않는 네 개의 사각형으로 나눠 표시합니다.
-    //   const maskRects = [
-    //      // 위쪽, 아래쪽, 왼쪽, 오른쪽 회색 사각형
-    //     // new fabric.Rect({ left: 0, top: 0, width: canvasWidth, height: top }),
-    //     // new fabric.Rect({
-    //     //   left: 0,
-    //     //   top: top + guideHeight,
-    //     //   width: canvasWidth,
-    //     //   height: Math.max(0, canvasHeight - top - guideHeight),
-    //     // }),
-    //     // new fabric.Rect({ left: 0, top, width: left, height: guideHeight }),
-    //     // new fabric.Rect({
-    //     //   left: left + guideWidth,
-    //     //   top,
-    //     //   width: Math.max(0, canvasWidth - left - guideWidth),
-    //     //   height: guideHeight,
-    //     // }),
-    //   ];
-
-    //   maskRects.forEach((maskRect) => {
-    //     maskRect.set({
-    //       fill: 'rgba(75, 85, 99, 0.62)',
-    //       strokeWidth: 0,
-    //       selectable: false,
-    //       evented: false,
-    //       excludeFromExport: true,
-    //     });
-    //     markAsGuideObject(maskRect, 'overlay');
-    //     canvas.add(maskRect);
-    //   });
-
       // 키캡별 실제 면과 사이 간격
       for (let row = 0; row < rows; row += 1) {
         for (let col = 0; col < cols; col += 1) {
           const cellLeft = left + col * (cellWidth + gapPx);
           const cellTop = top + row * (cellHeight + gapPx);
 
-          const keycap = new fabric.Rect({
+          // 배열의 바깥쪽 네 꼭짓점에 해당하는 키캡만 해당 모서리를 둥글게 처리합니다.
+          const cornerRadius = Math.max(7, Math.min(cellWidth, cellHeight) * 0.09);
+          const keycapPath = createSelectiveRoundedRectPath(cellWidth, cellHeight, {
+            topLeft: row === 0 && col === 0 ? cornerRadius : 0,
+            topRight: row === 0 && col === cols - 1 ? cornerRadius : 0,
+            bottomRight: row === rows - 1 && col === cols - 1 ? cornerRadius : 0,
+            bottomLeft: row === rows - 1 && col === 0 ? cornerRadius : 0,
+          });
+
+          const keycap = new fabric.Path(keycapPath, {
             left: cellLeft,
             top: cellTop,
-            width: cellWidth,
-            height: cellHeight,
-            rx: Math.max(4, Math.min(cellWidth, cellHeight) * 0.035),
-            ry: Math.max(4, Math.min(cellWidth, cellHeight) * 0.035),
             originX: 'left',
             originY: 'top',
             fill: colorHex,
@@ -305,6 +304,8 @@ export default function KeycapCustomEditorPage() {
         originX: 'left',
         originY: 'top',
         fill: 'transparent',
+        rx: Math.max(7, Math.min(cellWidth, cellHeight) * 0.09),
+        ry: Math.max(7, Math.min(cellWidth, cellHeight) * 0.09),
         stroke: '#7C3AED',
         strokeWidth: 2,
         strokeUniform: true,
@@ -390,8 +391,11 @@ export default function KeycapCustomEditorPage() {
       setFontFamily(textObject.fontFamily ?? 'Pretendard');
       setTextColor(typeof textObject.fill === 'string' ? textObject.fill : '#111111');
       setFontSize(Math.round(textObject.fontSize ?? 42));
-      setFontWeight(Number(textObject.fontWeight) || 600);
+      setFontWeight(Number(textObject.fontWeight) || 400);
+      setLetterSpacing(Math.round(textObject.charSpacing ?? 0));
       setTextAngle(Math.round(textObject.angle ?? 0));
+      setIsAddingText(false);
+      setShowTextEditor(true);
     }
   }, []);
 
@@ -458,13 +462,31 @@ export default function KeycapCustomEditorPage() {
       preserveObjectStacking: true,
       selection: true,
       allowTouchScrolling: true,
+      targetFindTolerance: 16,
+      controlsAboveOverlay: true,
     });
     canvasRef.current = canvas;
 
     drawGuides(canvas, selectedSpec.rows, selectedSpec.cols, selectedColorSpec.hex);
 
-    const onSelection = () => syncSelectionState(canvas.getActiveObject());
-    const onSelectionCleared = () => syncSelectionState(null);
+    const onSelection = () => {
+      const active = canvas.getActiveObject();
+      if (active && !isGuideObject(active)) {
+        // 작은 요소도 모바일에서 쉽게 잡고 이동할 수 있도록 선택 여백과 조절점을 확대합니다.
+        active.set({
+          padding: Math.max(active.padding ?? 0, 12),
+          cornerSize: Math.max(active.cornerSize ?? 0, 18),
+          transparentCorners: false,
+          borderScaleFactor: 2,
+        });
+        active.setCoords();
+        canvas.requestRenderAll();
+      }
+      syncSelectionState(active);
+    };
+    const onSelectionCleared = () => {
+      syncSelectionState(null);
+    };
     const onObjectChanged = () => {
       invalidatePreview();
       updateObjectCounts();
@@ -578,8 +600,8 @@ export default function KeycapCustomEditorPage() {
         borderColor: '#7C3AED',
         cornerColor: '#7C3AED',
         cornerStrokeColor: '#FFFFFF',
-        cornerSize: 13,
-        padding: 2,
+        cornerSize: 18,
+        padding: 12,
         lockUniScaling: true,
         objectCaching: false,
         name,
@@ -647,6 +669,7 @@ export default function KeycapCustomEditorPage() {
       fontFamily,
       fontSize,
       fontWeight,
+      charSpacing: letterSpacing,
       fill: textColor,
       angle: textAngle,
       cornerStyle: 'circle',
@@ -654,8 +677,8 @@ export default function KeycapCustomEditorPage() {
       borderColor: '#7C3AED',
       cornerColor: '#7C3AED',
       cornerStrokeColor: '#FFFFFF',
-      cornerSize: 13,
-      padding: 3,
+      cornerSize: 18,
+      padding: 12,
       lockUniScaling: true,
     });
       canvas.add(text);
@@ -663,6 +686,7 @@ export default function KeycapCustomEditorPage() {
       arrangeGuideLayers(canvas);
       canvas.requestRenderAll();
       syncSelectionState(text);
+      setIsAddingText(false);
       invalidatePreview();
     });
   };
@@ -956,136 +980,14 @@ export default function KeycapCustomEditorPage() {
               </p>
             </section>
 
-            <section className="rounded-3xl border border-purple-100 bg-white p-4 shadow-sm sm:p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-violet-500">STEP 3</p>
-                  <h2 className="mt-1 text-lg font-black text-purple-950">사진 추가</h2>
-                </div>
-                <span className="text-xs font-bold text-gray-400">{imageCount}/{MAX_IMAGES}</span>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="mt-4 flex w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-violet-200 bg-violet-50/50 px-4 py-6 text-center transition hover:bg-violet-50"
-              >
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white text-2xl font-light text-violet-500 shadow-sm">+</span>
-                <span className="mt-3 text-sm font-black text-purple-950">사진 선택하기</span>
-                <span className="mt-1 text-[11px] leading-5 text-gray-500">JPG · PNG · WEBP · HEIC / 파일당 10MB</span>
-              </button>
-            </section>
-
-            <section className="rounded-3xl border border-purple-100 bg-white p-4 shadow-sm sm:p-5">
-              <p className="text-xs font-bold text-violet-500">STEP 4</p>
-              <h2 className="mt-1 text-lg font-black text-purple-950">텍스트 추가</h2>
-              <div className="mt-4 space-y-3">
-                <input
-                  type="text"
-                  value={textValue}
-                  onChange={(event) => {
-                    setTextValue(event.target.value);
-                    if (selectedObjectKind === 'text') updateActiveText({ text: event.target.value });
-                  }}
-                  placeholder="각인할 문구를 입력해 주세요"
-                  className="w-full rounded-xl border border-purple-100 px-3 py-3 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-                />
-
-                <div className="grid grid-cols-3 gap-2">
-                  {FONT_OPTIONS.map((font) => (
-                    <button
-                      type="button"
-                      key={font.key}
-                      onClick={() => {
-                        setFontFamily(font.key);
-                        setFontWeight(font.weight);
-                        if (selectedObjectKind === 'text') {
-                          updateActiveText({ fontFamily: font.key, fontWeight: font.weight });
-                        }
-                      }}
-                      className={`rounded-xl border px-2 py-3 text-center transition ${
-                        fontFamily === font.key ? 'border-violet-500 bg-violet-50' : 'border-purple-100'
-                      }`}
-                    >
-                      <span className="block text-xs font-black text-purple-950">{font.label}</span>
-                      <span className="mt-1 block truncate text-[9px] text-gray-500" style={{ fontFamily: font.key, fontWeight: font.weight }}>
-                        {font.sample}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="text-xs font-bold text-gray-600">
-                    글자색
-                    <input
-                      type="color"
-                      value={textColor}
-                      onChange={(event) => {
-                        setTextColor(event.target.value);
-                        if (selectedObjectKind === 'text') updateActiveText({ fill: event.target.value });
-                      }}
-                      className="mt-1 h-10 w-full cursor-pointer rounded-lg border border-purple-100 bg-white p-1"
-                    />
-                  </label>
-                  <label className="text-xs font-bold text-gray-600">
-                    {/* 폰트 굵기
-                    <div className="mt-1 flex h-10 items-center rounded-lg border border-purple-100 bg-purple-50/40 px-3 text-xs font-medium text-gray-600">
-                      {fontFamily === 'Pretendard' && 'Thin · 100'}
-                      {fontFamily === 'MitmiFont' && 'Regular · 400'}
-                      {fontFamily === 'BinggreIi' && 'Bold · 700'}
-                    </div> */}
-                  </label>
-                </div>
-
-                <label className="block text-xs font-bold text-gray-600">
-                  글자 크기 {fontSize}px
-                  <input
-                    type="range"
-                    min={14}
-                    max={140}
-                    value={fontSize}
-                    onChange={(event) => {
-                      const value = Number(event.target.value);
-                      setFontSize(value);
-                      if (selectedObjectKind === 'text') updateActiveText({ fontSize: value });
-                    }}
-                    className="mt-2 w-full accent-violet-500"
-                  />
-                </label>
-
-                <label className="block text-xs font-bold text-gray-600">
-                  회전 {textAngle}°
-                  <input
-                    type="range"
-                    min={-180}
-                    max={180}
-                    value={textAngle}
-                    onChange={(event) => {
-                      const value = Number(event.target.value);
-                      setTextAngle(value);
-                      if (selectedObjectKind === 'text') updateActiveText({ angle: value });
-                    }}
-                    className="mt-2 w-full accent-violet-500"
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  onClick={addText}
-                  className="w-full rounded-xl bg-violet-500 py-3 text-sm font-black text-white shadow-md shadow-violet-100 transition hover:bg-violet-600"
-                >
-                  텍스트 새로 추가
-                </button>
-              </div>
-            </section>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif"
+              onChange={handleImageUpload}
+              className="hidden"
+            />
           </div>
 
           <div className="min-w-0">
@@ -1123,19 +1025,199 @@ export default function KeycapCustomEditorPage() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="pointer-events-auto absolute left-1/2 top-1/2 z-10 w-[78%] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-violet-200 bg-white/95 px-5 py-5 text-center shadow-lg backdrop-blur"
+                    className="pointer-events-auto absolute left-1/2 top-1/2 z-10 w-auto max-w-[82%] -translate-x-1/2 -translate-y-1/2 rounded-xl border border-violet-200 bg-white/95 px-4 py-3 text-center shadow-md backdrop-blur"
                   >
-                    <span className="block text-sm font-black text-purple-950">사진을 추가해서 편집을 시작하세요</span>
-                    <span className="mt-1 block text-[11px] leading-5 text-gray-500">
-                      한 장을 전체 배열에 배치하거나, 여러 장을 각각의 키캡에 놓을 수 있습니다.
-                    </span>
+                    <span className="block text-sm font-black text-purple-950">+ 첫 사진 추가</span>
+                    <span className="mt-0.5 block text-[10px] text-gray-500">JPG · PNG · WEBP · HEIC</span>
                   </button>
                 )}
               </div>
 
               <p className="mt-3 text-center text-[11px] leading-5 text-gray-500">
-                보라색 외곽선은 전체 작업 영역, 점선은 키캡별 안전 영역입니다. 회색 음영 부분은 각인되지 않습니다.
+                보라색 외곽선은 전체 작업 영역이며, 점선은 키캡별 안전 영역입니다.
               </p>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={imageCount >= MAX_IMAGES}
+                  className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-3 text-sm font-black text-violet-700 transition hover:bg-violet-100 disabled:opacity-40"
+                >
+                  + 사진 추가 <span className="text-[10px] font-medium">({imageCount}/{MAX_IMAGES})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const canvas = canvasRef.current;
+                    canvas?.discardActiveObject();
+                    canvas?.requestRenderAll();
+                    syncSelectionState(null);
+                    setTextValue('');
+                    setIsAddingText(true);
+                    setShowTextEditor(true);
+                  }}
+                  className="rounded-xl border border-purple-200 bg-white px-3 py-3 text-sm font-black text-purple-800 transition hover:bg-purple-50"
+                >
+                  + 텍스트 추가
+                </button>
+              </div>
+
+              {showTextEditor && (isAddingText || selectedObjectKind === 'text') && (
+                <div className="mt-3 rounded-2xl border border-violet-200 bg-violet-50/40 p-3 sm:p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-black text-purple-950">
+                        {selectedObjectKind === 'text' && !isAddingText ? '선택한 텍스트 편집' : '새 텍스트 추가'}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-gray-500">입력값은 선택한 텍스트에 바로 반영됩니다.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // 선택 상태는 유지하고 편집 패널만 숨깁니다.
+                        setShowTextEditor(false);
+                        setIsAddingText(false);
+                        if (selectedObjectKind !== 'text') setTextValue('');
+                      }}
+                      className="rounded-lg px-2 py-1 text-lg font-bold text-gray-400"
+                      aria-label="텍스트 편집 닫기"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <input
+                    type="text"
+                    value={textValue}
+                    onChange={(event) => {
+                      setTextValue(event.target.value);
+                      if (selectedObjectKind === 'text' && !isAddingText) updateActiveText({ text: event.target.value });
+                    }}
+                    placeholder="각인할 문구를 입력해 주세요"
+                    className="mt-3 w-full rounded-xl border border-purple-100 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                  />
+
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {FONT_OPTIONS.map((font) => (
+                      <button
+                        type="button"
+                        key={font.key}
+                        onClick={() => {
+                          setFontFamily(font.key);
+                          if (selectedObjectKind === 'text' && !isAddingText) {
+                            updateActiveText({ fontFamily: font.key });
+                          }
+                        }}
+                        className={`rounded-xl border px-2 py-2 text-center transition ${
+                          fontFamily === font.key ? 'border-violet-500 bg-white' : 'border-purple-100 bg-white/70'
+                        }`}
+                      >
+                        <span className="block text-[11px] font-black text-purple-950">{font.label}</span>
+                        <span className="mt-1 block truncate text-[9px] text-gray-500" style={{ fontFamily: font.key }}>
+                          {font.sample}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {[
+                      { label: 'Regular', value: 400 },
+                      { label: 'Thick', value: 700 },
+                    ].map((weight) => (
+                      <button
+                        type="button"
+                        key={weight.value}
+                        onClick={() => {
+                          setFontWeight(weight.value);
+                          if (selectedObjectKind === 'text' && !isAddingText) {
+                            updateActiveText({ fontWeight: weight.value });
+                          }
+                        }}
+                        className={`rounded-lg border py-2 text-[11px] font-bold transition ${
+                          fontWeight === weight.value
+                            ? 'border-violet-500 bg-violet-500 text-white'
+                            : 'border-purple-100 bg-white text-gray-600'
+                        }`}
+                      >
+                        {weight.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-[90px_minmax(0,1fr)] items-end gap-3">
+                    <label className="text-[11px] font-bold text-gray-600">
+                      글자색
+                      <input
+                        type="color"
+                        value={textColor}
+                        onChange={(event) => {
+                          setTextColor(event.target.value);
+                          if (selectedObjectKind === 'text' && !isAddingText) updateActiveText({ fill: event.target.value });
+                        }}
+                        className="mt-1 h-9 w-full cursor-pointer rounded-lg border border-purple-100 bg-white p-1"
+                      />
+                    </label>
+
+                    <p className="pb-1 text-[11px] leading-5 text-gray-500">
+                      글자 크기는 캔버스에서 텍스트를 선택한 뒤 모서리 원을 드래그해 조절하세요.
+                    </p>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <label className="text-[11px] font-bold text-gray-600">
+                      자간
+                      <div className="mt-1 flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={-200}
+                          max={800}
+                          step={10}
+                          value={letterSpacing}
+                          onChange={(event) => {
+                            const value = Math.max(-200, Math.min(800, Number(event.target.value)));
+                            setLetterSpacing(value);
+                            if (selectedObjectKind === 'text' && !isAddingText) updateActiveText({ charSpacing: value });
+                          }}
+                          className="h-10 min-w-0 flex-1 rounded-lg border border-purple-100 bg-white px-2 text-sm outline-none focus:border-violet-400"
+                        />
+                        <span className="text-[10px] text-gray-400">단위</span>
+                      </div>
+                    </label>
+
+                    <label className="text-[11px] font-bold text-gray-600">
+                      회전 각도
+                      <div className="mt-1 flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={-180}
+                          max={180}
+                          step={1}
+                          value={textAngle}
+                          onChange={(event) => {
+                            const value = Math.max(-180, Math.min(180, Number(event.target.value)));
+                            setTextAngle(value);
+                            if (selectedObjectKind === 'text' && !isAddingText) updateActiveText({ angle: value });
+                          }}
+                          className="h-10 min-w-0 flex-1 rounded-lg border border-purple-100 bg-white px-2 text-sm outline-none focus:border-violet-400"
+                        />
+                        <span className="text-xs text-gray-500">°</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {isAddingText && (
+                    <button
+                      type="button"
+                      onClick={addText}
+                      className="mt-3 w-full rounded-xl bg-violet-500 py-3 text-sm font-black text-white shadow-md shadow-violet-100 transition hover:bg-violet-600"
+                    >
+                      캔버스에 텍스트 추가
+                    </button>
+                  )}
+                </div>
+              )}
 
               <div className="mt-4 rounded-2xl border border-purple-100 bg-[#fcfbff] p-3">
                 <div className="flex items-center justify-between gap-3">
