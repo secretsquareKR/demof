@@ -5,6 +5,46 @@
   --foreground: #171717;
 }
 
+/* @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css'); */
+
+/* @font-face {
+  font-family: 'Meetme';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/2402-1@1.0/Meetme.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Binggrae2';
+  src: url('https://fastly.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/Binggrae2.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+ */
+
+@font-face {
+    font-family: 'Pretendard2';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Thin.woff2') format('woff2');
+    font-weight: 600;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'BinggreIi';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_one@1.0/Binggrae-Bold.woff') format('woff');
+    font-weight: 700;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'MitmiFont';
+    src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2402_1@1.0/Ownglyph_meetme-Rg.woff2') format('woff2');
+    font-weight: normal;
+    font-display: swap;
+}
+
+
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -18,6 +58,10 @@
     --foreground: #ffffff;
   }
 }
+
+
+
+
 
 body {
   background: var(--background);
