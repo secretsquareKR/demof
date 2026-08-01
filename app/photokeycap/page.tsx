@@ -510,9 +510,9 @@ export default function KeycapEditorPage() {
        * 편집 내용을 나중에 다시 불러올 수 있도록
        * Fabric JSON도 함께 저장한다.
        */
-      const fabricJson = canvas.toJSON([
-        'name',
-      ]);
+      // const fabricJson = canvas.toJSON([
+      //   'name'
+      // ]);
 
       const formData = new FormData();
 
@@ -523,10 +523,10 @@ export default function KeycapEditorPage() {
       );
 
       formData.append('layoutType', layoutType);
-      formData.append(
-        'fabricJson',
-        JSON.stringify(fabricJson),
-      );
+      // formData.append(
+      //   'fabricJson',
+      //   JSON.stringify(fabricJson),
+      // );
 
       formData.append('customerName', customerName);
       formData.append('phone', phone);
