@@ -8,8 +8,12 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_IMAGES = 20;
 const GAP_MM = 0.3;
 const KEYCAP_MM = 18.6;
+const MIN_CANVAS_ZOOM = 1;
+const MAX_CANVAS_ZOOM = 3;
+const CANVAS_ZOOM_STEP = 0.25;
 
 const LAYOUTS = [
+  { key: '1x1', rows: 1, cols: 1, label: '1칸' },
   { key: '1x4', rows: 1, cols: 4, label: '가로 4키' },
   { key: '1x3', rows: 1, cols: 3, label: '가로 3키' },
   { key: '2x3', rows: 2, cols: 3, label: '2행 3열' },
@@ -37,6 +41,21 @@ const FONT_OPTIONS = [
   { key: 'Pretendard', label: '고딕체', sample: '깔끔한 고딕', weight: 100 },
   { key: 'MitmiFont', label: '둥근체', sample: '말랑한 둥근체', weight: 400 },
   { key: 'BinggreIi', label: '개성체', sample: '개성있는 글씨', weight: 700 },
+] as const;
+
+const TEXT_COLOR_PRESETS = [
+  { label: '검정', value: '#111111' },
+  { label: '흰색', value: '#FFFFFF' },
+  { label: '빨강', value: '#EF4444' },
+  { label: '주황', value: '#F97316' },
+  { label: '노랑', value: '#FACC15' },
+  { label: '초록', value: '#22C55E' },
+  { label: '민트', value: '#14B8A6' },
+  { label: '하늘', value: '#38BDF8' },
+  { label: '파랑', value: '#2563EB' },
+  { label: '보라', value: '#8B5CF6' },
+  { label: '분홍', value: '#EC4899' },
+  { label: '갈색', value: '#92400E' },
 ] as const;
 
 type GuideBounds = {
@@ -137,6 +156,9 @@ export default function KeycapCustomEditorPage() {
   const historyIndexRef = useRef(-1);
   const restoringHistoryRef = useRef(false);
   const historyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPanModeRef = useRef(false);
+  const isPanningRef = useRef(false);
+  const lastPanPointRef = useRef({ x: 0, y: 0 });
 
   const [selectedLayout, setSelectedLayout] = useState<LayoutKey>('1x4');
   const [selectedColor, setSelectedColor] = useState<KeycapColorKey>('white');
@@ -159,6 +181,8 @@ export default function KeycapCustomEditorPage() {
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [canvasZoom, setCanvasZoom] = useState(1);
+  const [isPanMode, setIsPanMode] = useState(false);
 
   const [orderData, setOrderData] = useState<OrderData>({
     orderType: '주문전',
@@ -259,21 +283,21 @@ export default function KeycapCustomEditorPage() {
             bottomLeft: row === rows - 1 && col === 0 ? cornerRadius : 0,
           });
 
-          const keycap = new fabric.Path(keycapPath, {
+          // 키캡 색상 면은 이미지와 텍스트 아래에 배치합니다.
+          const keycapBackground = new fabric.Path(keycapPath, {
             left: cellLeft,
             top: cellTop,
             originX: 'left',
             originY: 'top',
             fill: colorHex,
-            stroke: 'rgba(17,24,39,0.55)',
-            strokeWidth: 1.2,
-            strokeUniform: true,
+            stroke: undefined,
+            strokeWidth: 0,
             selectable: false,
             evented: false,
             excludeFromExport: true,
           });
-          markAsGuideObject(keycap, 'background');
-          canvas.add(keycap);
+          markAsGuideObject(keycapBackground, 'background');
+          canvas.add(keycapBackground);
 
           const safeArea = new fabric.Rect({
             left: cellLeft + cellWidth * 0.055,
@@ -294,6 +318,43 @@ export default function KeycapCustomEditorPage() {
           markAsGuideObject(safeArea);
           canvas.add(safeArea);
         }
+      }
+
+      // 키캡별 전체 외곽선 대신, 키캡 사이의 경계선만 이중선으로 표시합니다.
+      // 흰색 굵은 선을 먼저 그리고 그 위에 얇은 검은색 선을 겹쳐
+      // 밝거나 어두운 이미지에서도 경계가 잘 보이도록 합니다.
+      const addInternalBoundary = (coords: [number, number, number, number]) => {
+        const whiteHalo = new fabric.Line(coords, {
+          stroke: 'rgba(255,255,255,0.9)',
+          strokeWidth: 4,
+          strokeUniform: true,
+          selectable: false,
+          evented: false,
+          excludeFromExport: true,
+        });
+
+        const blackLine = new fabric.Line(coords, {
+          stroke: 'rgba(17,24,39,0.88)',
+          strokeWidth: 1.5,
+          strokeUniform: true,
+          selectable: false,
+          evented: false,
+          excludeFromExport: true,
+        });
+
+        markAsGuideObject(whiteHalo, 'overlay');
+        markAsGuideObject(blackLine, 'overlay');
+        canvas.add(whiteHalo, blackLine);
+      };
+
+      for (let col = 1; col < cols; col += 1) {
+        const x = left + col * cellWidth + (col - 0.5) * gapPx;
+        addInternalBoundary([x, top, x, top + guideHeight]);
+      }
+
+      for (let row = 1; row < rows; row += 1) {
+        const y = top + row * cellHeight + (row - 0.5) * gapPx;
+        addInternalBoundary([left, y, left + guideWidth, y]);
       }
 
       const outerBorder = new fabric.Rect({
@@ -441,6 +502,107 @@ export default function KeycapCustomEditorPage() {
     pushHistory();
   }, [pushHistory]);
 
+  const setDesignObjectsInteractive = useCallback((interactive: boolean) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.getObjects().filter(isDesignObject).forEach((obj) => {
+      obj.set({
+        selectable: interactive,
+        evented: interactive,
+      });
+    });
+  }, []);
+
+  const applyPanMode = useCallback(
+    (enabled: boolean) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const nextEnabled = enabled && canvas.getZoom() > MIN_CANVAS_ZOOM;
+      isPanModeRef.current = nextEnabled;
+      isPanningRef.current = false;
+      setIsPanMode(nextEnabled);
+
+      canvas.discardActiveObject();
+      canvas.selection = !nextEnabled;
+      setDesignObjectsInteractive(!nextEnabled);
+      canvas.defaultCursor = nextEnabled ? 'grab' : 'default';
+      canvas.hoverCursor = nextEnabled ? 'grab' : 'move';
+      canvas.upperCanvasEl.style.touchAction = nextEnabled ? 'none' : 'pan-y';
+      canvas.requestRenderAll();
+      syncSelectionState(null);
+    },
+    [setDesignObjectsInteractive, syncSelectionState],
+  );
+
+
+  const clampViewportToGuide = useCallback((viewport: fabric.TMat2D) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return viewport;
+
+    const zoom = viewport[0];
+    const bounds = guideBoundsRef.current;
+    const canvasWidth = canvas.getWidth();
+    const canvasHeight = canvas.getHeight();
+
+    // 확대 시 배열의 각 끝부분을 화면 중앙까지 이동할 수 있도록 허용합니다.
+    const minTranslateX = canvasWidth / 2 - (bounds.left + bounds.width) * zoom;
+    const maxTranslateX = canvasWidth / 2 - bounds.left * zoom;
+    const minTranslateY = canvasHeight / 2 - (bounds.top + bounds.height) * zoom;
+    const maxTranslateY = canvasHeight / 2 - bounds.top * zoom;
+
+    viewport[4] = Math.max(minTranslateX, Math.min(maxTranslateX, viewport[4]));
+    viewport[5] = Math.max(minTranslateY, Math.min(maxTranslateY, viewport[5]));
+
+    return viewport;
+  }, []);
+
+  const resetEditorViewport = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    setCanvasZoom(1);
+    applyPanMode(false);
+    canvas.requestRenderAll();
+  }, [applyPanMode]);
+
+  const setEditorZoom = useCallback(
+    (requestedZoom: number) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const zoom = Math.max(MIN_CANVAS_ZOOM, Math.min(MAX_CANVAS_ZOOM, requestedZoom));
+      const bounds = guideBoundsRef.current;
+      const guideCenter = new fabric.Point(
+        bounds.left + bounds.width / 2,
+        bounds.top + bounds.height / 2,
+      );
+
+      // 배열 중심을 기준으로 확대해 양쪽 끝의 이동 가능 범위를 균형 있게 유지합니다.
+      canvas.zoomToPoint(guideCenter, zoom);
+
+      if (canvas.viewportTransform) {
+        const nextViewport = clampViewportToGuide(
+          [...canvas.viewportTransform] as fabric.TMat2D,
+        );
+        canvas.setViewportTransform(nextViewport);
+      }
+
+      setCanvasZoom(zoom);
+
+      if (zoom <= MIN_CANVAS_ZOOM) {
+        canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+        applyPanMode(false);
+      }
+
+      canvas.requestRenderAll();
+    },
+    [applyPanMode, clampViewportToGuide],
+  );
+
+
   const updateCanvasSize = useCallback(() => {
     const canvas = canvasRef.current;
     const container = canvasContainerRef.current;
@@ -448,8 +610,14 @@ export default function KeycapCustomEditorPage() {
     const width = Math.max(280, Math.floor(container.clientWidth));
     const height = Math.max(360, Math.min(520, Math.round(width * 0.92)));
     canvas.setDimensions({ width, height });
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    setCanvasZoom(1);
+    isPanModeRef.current = false;
+    setIsPanMode(false);
+    canvas.selection = true;
+    setDesignObjectsInteractive(true);
     drawGuides(canvas, selectedSpec.rows, selectedSpec.cols, selectedColorSpec.hex);
-  }, [drawGuides, selectedColorSpec.hex, selectedSpec.cols, selectedSpec.rows]);
+  }, [drawGuides, selectedColorSpec.hex, selectedSpec.cols, selectedSpec.rows, setDesignObjectsInteractive]);
 
   useEffect(() => {
     if (!canvasElementRef.current || !canvasContainerRef.current) return;
@@ -501,14 +669,112 @@ export default function KeycapCustomEditorPage() {
     canvas.on('object:added', onObjectChanged);
     canvas.on('object:removed', onObjectChanged);
 
-    // 객체를 터치할 때만 캔버스 제스처를 잡고, 빈 영역에서는 세로 스크롤 허용
     const upperCanvas = canvas.upperCanvasEl;
+    let activePanPointerId: number | null = null;
+
+    // 삼성 인터넷을 포함한 모바일 브라우저에서 안정적으로 동작하도록
+    // Fabric의 mouse 이벤트 대신 DOM Pointer Events로 화면 이동을 처리합니다.
+    const onPointerDown = (event: PointerEvent) => {
+      if (!isPanModeRef.current || canvas.getZoom() <= MIN_CANVAS_ZOOM) return;
+
+      // 두 번째 손가락이 들어오면 현재 화면 이동은 종료합니다.
+      if (activePanPointerId !== null) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      activePanPointerId = event.pointerId;
+      isPanningRef.current = true;
+      lastPanPointRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+      };
+
+      try {
+        upperCanvas.setPointerCapture(event.pointerId);
+      } catch {
+        // 일부 브라우저에서는 capture 호출이 실패할 수 있지만 이동 자체는 계속 허용합니다.
+      }
+
+      canvas.defaultCursor = 'grabbing';
+      upperCanvas.style.cursor = 'grabbing';
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (
+        !isPanModeRef.current ||
+        !isPanningRef.current ||
+        activePanPointerId !== event.pointerId
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      const viewport = canvas.viewportTransform;
+      if (!viewport) return;
+
+      const deltaX = event.clientX - lastPanPointRef.current.x;
+      const deltaY = event.clientY - lastPanPointRef.current.y;
+      const nextViewport = [...viewport] as fabric.TMat2D;
+
+      nextViewport[4] += deltaX;
+      nextViewport[5] += deltaY;
+
+      canvas.setViewportTransform(clampViewportToGuide(nextViewport));
+      lastPanPointRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+      };
+      canvas.requestRenderAll();
+    };
+
+    const finishPointerPan = (event?: PointerEvent) => {
+      if (event && activePanPointerId !== event.pointerId) return;
+
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+        try {
+          if (upperCanvas.hasPointerCapture(event.pointerId)) {
+            upperCanvas.releasePointerCapture(event.pointerId);
+          }
+        } catch {
+          // pointer capture 해제 실패는 무시합니다.
+        }
+      }
+
+      activePanPointerId = null;
+      isPanningRef.current = false;
+      canvas.defaultCursor = isPanModeRef.current ? 'grab' : 'default';
+      upperCanvas.style.cursor = isPanModeRef.current ? 'grab' : 'default';
+
+      if (canvas.viewportTransform) {
+        canvas.setViewportTransform(
+          clampViewportToGuide([...canvas.viewportTransform] as fabric.TMat2D),
+        );
+      }
+      canvas.requestRenderAll();
+    };
+
+    upperCanvas.addEventListener('pointerdown', onPointerDown, { passive: false });
+    upperCanvas.addEventListener('pointermove', onPointerMove, { passive: false });
+    upperCanvas.addEventListener('pointerup', finishPointerPan, { passive: false });
+    upperCanvas.addEventListener('pointercancel', finishPointerPan, { passive: false });
+    upperCanvas.addEventListener('lostpointercapture', finishPointerPan);
+
+    // 객체를 터치할 때만 캔버스 제스처를 잡고, 빈 영역에서는 세로 스크롤 허용
     const onTouchStart = (event: TouchEvent) => {
+      if (isPanModeRef.current) {
+        upperCanvas.style.touchAction = 'none';
+        return;
+      }
       const target = canvas.findTarget(event)?.target;
       upperCanvas.style.touchAction = target && !isGuideObject(target) ? 'none' : 'pan-y';
     };
     const onTouchEnd = () => {
-      upperCanvas.style.touchAction = 'pan-y';
+      upperCanvas.style.touchAction = isPanModeRef.current ? 'none' : 'pan-y';
     };
     upperCanvas.addEventListener('touchstart', onTouchStart, { passive: true });
     upperCanvas.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -522,6 +788,11 @@ export default function KeycapCustomEditorPage() {
     return () => {
       if (historyTimerRef.current) clearTimeout(historyTimerRef.current);
       resizeObserver.disconnect();
+      upperCanvas.removeEventListener('pointerdown', onPointerDown);
+      upperCanvas.removeEventListener('pointermove', onPointerMove);
+      upperCanvas.removeEventListener('pointerup', finishPointerPan);
+      upperCanvas.removeEventListener('pointercancel', finishPointerPan);
+      upperCanvas.removeEventListener('lostpointercapture', finishPointerPan);
       upperCanvas.removeEventListener('touchstart', onTouchStart);
       upperCanvas.removeEventListener('touchend', onTouchEnd);
       upperCanvas.removeEventListener('touchcancel', onTouchEnd);
@@ -563,6 +834,7 @@ export default function KeycapCustomEditorPage() {
       if (!confirmed) return;
       clearAllDesignObjects(false);
     }
+    resetEditorViewport();
     setSelectedLayout(nextLayout);
     setTimeout(() => resetHistory(), 0);
   };
@@ -584,6 +856,7 @@ export default function KeycapCustomEditorPage() {
   const addImageBlob = async (blob: Blob, name: string) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    applyPanMode(false);
 
     const objectUrl = URL.createObjectURL(blob);
     try {
@@ -653,6 +926,7 @@ export default function KeycapCustomEditorPage() {
 
   const addText = () => {
     const canvas = canvasRef.current;
+    applyPanMode(false);
     const value = textValue.trim();
     if (!canvas || !value) {
       alert('추가할 문구를 입력해 주세요.');
@@ -795,7 +1069,12 @@ export default function KeycapCustomEditorPage() {
       return;
     }
 
+    const previousViewport = canvas.viewportTransform
+      ? ([...canvas.viewportTransform] as fabric.TMat2D)
+      : ([1, 0, 0, 1, 0, 0] as fabric.TMat2D);
+
     canvas.discardActiveObject();
+    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
     const guides = canvas.getObjects().filter(isGuideObject);
     guides.forEach((obj) => obj.set({ visible: false }));
 
@@ -816,13 +1095,20 @@ export default function KeycapCustomEditorPage() {
     outputCanvas.width = targetWidth;
     outputCanvas.height = targetHeight;
     const context = outputCanvas.getContext('2d');
-    if (!context) return;
+    if (!context) {
+      guides.forEach((obj) => obj.set({ visible: true }));
+      canvas.setViewportTransform(previousViewport);
+      arrangeGuideLayers(canvas);
+      canvas.requestRenderAll();
+      return;
+    }
     context.fillStyle = selectedColorSpec.hex;
     context.fillRect(0, 0, targetWidth, targetHeight);
     context.drawImage(cropped, 0, 0, targetWidth, targetHeight);
     const dataUrl = outputCanvas.toDataURL('image/png', 1);
 
     guides.forEach((obj) => obj.set({ visible: true }));
+    canvas.setViewportTransform(previousViewport);
     arrangeGuideLayers(canvas);
     canvas.requestRenderAll();
 
@@ -831,26 +1117,250 @@ export default function KeycapCustomEditorPage() {
     setTimeout(() => orderFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
-  const handleOrderSubmit = (event: React.FormEvent) => {
+ const handleOrderSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
-    const name = orderData.customerName.trim();
-    if (!name) return alert('주문자 이름을 입력해 주세요.');
-    if (name.length > 15) return alert('이름은 최대 15글자까지 입력할 수 있습니다.');
-    if (!/^010\d{8}$/.test(orderData.contact) && !/^050\d{9}$/.test(orderData.contact)) {
-      return alert('010 또는 050으로 시작하는 올바른 연락처를 입력해 주세요.');
-    }
-    if (orderData.eventCode.trim().length > 8) return alert('이벤트 코드는 최대 8자입니다.');
-    if (!orderData.privacyAgreed) return alert('개인정보 수집 및 이용에 동의해 주세요.');
-    if (!previewImageUrl) return alert('편집 완료 버튼을 다시 눌러 시안을 생성해 주세요.');
 
-    console.log('Supabase 연결 전 테스트 데이터', {
-      layout: selectedLayout,
-      keycapColor: selectedColor,
-      previewImageUrl,
-      ...orderData,
-    });
-    setNotice('테스트 접수가 완료되었습니다. 현재는 서버 전송 없이 브라우저 콘솔에 데이터만 출력됩니다.');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (isSubmitting) return;
+
+    const name =
+      orderData.customerName.trim();
+
+    const contact =
+      orderData.contact.trim();
+
+    const eventCode =
+      orderData.eventCode.trim();
+
+    const requestMessage =
+      orderData.requestMessage.trim();
+
+    /*
+    * 1. 브라우저 입력값 검사
+    */
+    if (!name) {
+      alert(
+        '주문자 이름을 입력해 주세요.',
+      );
+      return;
+    }
+
+    if (name.length > 15) {
+      alert(
+        '이름은 최대 15글자까지 입력할 수 있습니다.',
+      );
+      return;
+    }
+
+    const isValidContact =
+      /^010\d{8}$/.test(contact) ||
+      /^050\d{9}$/.test(contact);
+
+    if (!isValidContact) {
+      alert(
+        '010 또는 050으로 시작하는 올바른 연락처를 입력해 주세요.',
+      );
+      return;
+    }
+
+    if (eventCode.length > 8) {
+      alert(
+        '이벤트 코드는 최대 8자입니다.',
+      );
+      return;
+    }
+
+    if (!orderData.privacyAgreed) {
+      alert(
+        '개인정보 수집 및 이용에 동의해 주세요.',
+      );
+      return;
+    }
+
+    if (!previewImageUrl) {
+      alert(
+        '편집 완료 버튼을 다시 눌러 시안을 생성해 주세요.',
+      );
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setNotice(null);
+
+      /*
+      * 2. Canvas에서 생성된 Data URL을
+      * PNG Blob으로 변환
+      */
+      const imageResponse =
+        await fetch(previewImageUrl);
+
+      if (!imageResponse.ok) {
+        throw new Error(
+          '시안 이미지를 파일로 변환하지 못했습니다.',
+        );
+      }
+
+      const imageBlob =
+        await imageResponse.blob();
+
+      if (
+        imageBlob.size <= 0
+      ) {
+        throw new Error(
+          '생성된 시안 이미지가 비어있습니다.',
+        );
+      }
+
+      if (
+        imageBlob.size >
+        10 * 1024 * 1024
+      ) {
+        throw new Error(
+          '시안 이미지의 용량이 10MB를 초과했습니다.',
+        );
+      }
+
+      /*
+      * 3. FormData 구성
+      */
+      const formData =
+        new FormData();
+
+      formData.append(
+        'previewImage',
+        imageBlob,
+        `keycap-${selectedLayout}-${selectedColor}.png`,
+      );
+
+      formData.append(
+        'customerName',
+        name,
+      );
+
+      formData.append(
+        'contact',
+        contact,
+      );
+
+      formData.append(
+        'color',
+        selectedColor,
+      );
+
+      formData.append(
+        'size',
+        selectedLayout,
+      );
+
+      formData.append(
+        'orderType',
+        orderData.orderType,
+      );
+
+      formData.append(
+        'eventCode',
+        eventCode,
+      );
+
+      formData.append(
+        'request',
+        requestMessage,
+      );
+
+      formData.append(
+        'productName',
+        '포토키캡키링',
+      );
+
+      /*
+      * 4. API 전송
+      *
+      * FormData를 보낼 때 Content-Type을 직접
+      * 지정하지 않아야 브라우저가 boundary를
+      * 자동으로 추가합니다.
+      */
+      const response = await fetch(
+        '/api/design-order',
+        {
+          method: 'POST',
+          body: formData,
+        },
+      );
+
+      const result = await response.json();
+
+      if (response.status === 429) {
+        throw new Error(
+          result.error ??
+            '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.',
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          result.error ??
+            '시안 접수 중 오류가 발생했습니다.',
+        );
+      }
+
+      /*
+      * 5. 성공 처리
+      */
+      setNotice(
+        '시안 접수가 완료되었습니다. 확인 후 연락드리겠습니다.',
+      );
+
+      console.log(
+        '시안 접수 완료:',
+        {
+          orderId:
+            result.orderId,
+          previewImageUrl:
+            result.previewImageUrl,
+          createdAt:
+            result.createdAt,
+        },
+      );
+
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+
+      /*
+      * 중복 접수를 막기 위해
+      * 주문 폼을 닫을 수도 있습니다.
+      */
+      setShowOrderForm(false);
+
+      // 필요하면 입력값 초기화
+      setOrderData({
+        orderType: '주문전',
+        customerName: '',
+        contact: '',
+        orderNumber: '',
+        requestMessage: '',
+        eventCode: '',
+        privacyAgreed: false,
+      });
+
+      setPreviewImageUrl(null);
+    } catch (error: unknown) {
+      console.error(
+        '시안 접수 오류:',
+        error,
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : '시안 접수 중 오류가 발생했습니다.',
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const downloadPreview = () => {
@@ -860,6 +1370,10 @@ export default function KeycapCustomEditorPage() {
     anchor.download = `keycap-${selectedLayout}-${selectedColor}.png`;
     anchor.click();
   };
+
+  const [isSubmitting, setIsSubmitting] =
+  useState(false);
+
 
   const toolButton =
     'rounded-xl border border-purple-100 bg-white px-3 py-2.5 text-xs font-bold text-purple-950 transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-35';
@@ -1021,6 +1535,57 @@ export default function KeycapCustomEditorPage() {
                 style={{ touchAction: 'pan-y' }}
               >
                 <canvas ref={canvasElementRef} />
+
+                <div className="pointer-events-auto absolute bottom-3 left-1/2 z-20 flex w-max -translate-x-1/2 items-center gap-1 overflow-x-auto rounded-2xl border border-purple-100 bg-white/95 p-1.5 shadow-lg backdrop-blur">
+                  <button
+                    type="button"
+                    onClick={() => setEditorZoom(canvasZoom - CANVAS_ZOOM_STEP)}
+                    disabled={canvasZoom <= MIN_CANVAS_ZOOM}
+                    className="flex h-9 w-4 shrink-0 items-center justify-center rounded-xl text-lg font-black text-purple-900 transition hover:bg-purple-50 disabled:opacity-30"
+                    aria-label="캔버스 축소"
+                  >
+                    −
+                  </button>
+
+                  <span className="min-w-[25px] text-center text-[11px] font-black text-violet-700">
+                    {Math.round(canvasZoom * 100)}%
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setEditorZoom(canvasZoom + CANVAS_ZOOM_STEP)}
+                    disabled={canvasZoom >= MAX_CANVAS_ZOOM}
+                    className="flex h-9 w-4 shrink-0 items-center justify-center rounded-xl text-lg font-black text-purple-900 transition hover:bg-purple-50 disabled:opacity-30"
+                    aria-label="캔버스 확대"
+                  >
+                    +
+                  </button>
+
+                  <div className="mx-0.5 h-5 w-px shrink-0 bg-purple-100" />
+
+                  <button
+                    type="button"
+                    onClick={() => applyPanMode(!isPanMode)}
+                    disabled={canvasZoom <= MIN_CANVAS_ZOOM}
+                    className={`shrink-0 rounded-xl px-2.5 py-2 text-[11px] font-black transition ${
+                      isPanMode
+                        ? 'bg-violet-500 text-white'
+                        : 'text-purple-800 hover:bg-purple-50'
+                    } disabled:opacity-30`}
+                  >
+                    {isPanMode ? '이동 중' : '화면 이동'}
+                  </button>
+                    
+                  <button
+                    type="button"
+                    onClick={resetEditorViewport}
+                    disabled={canvasZoom <= MIN_CANVAS_ZOOM}
+                    className="shrink-0 rounded-xl px-2.5 py-2 text-[11px] font-black text-purple-800 transition hover:bg-purple-50 disabled:opacity-30"
+                  >
+                    전체보기
+                  </button>
+                </div>
+
                 {designObjectCount === 0 && (
                   <button
                     type="button"
@@ -1034,7 +1599,7 @@ export default function KeycapCustomEditorPage() {
               </div>
 
               <p className="mt-3 text-center text-[11px] leading-5 text-gray-500">
-                보라색 외곽선은 전체 작업 영역이며, 점선은 키캡별 안전 영역입니다.
+                보라색 외곽선은 전체 작업 영역이며, 점선은 키캡별 안전 영역입니다. 확대 후 화면 이동 모드로 미세 위치를 조정할 수 있습니다.
               </p>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
@@ -1146,21 +1711,88 @@ export default function KeycapCustomEditorPage() {
                     ))}
                   </div>
 
-                  <div className="mt-3 grid grid-cols-[90px_minmax(0,1fr)] items-end gap-3">
-                    <label className="text-[11px] font-bold text-gray-600">
-                      글자색
-                      <input
-                        type="color"
-                        value={textColor}
-                        onChange={(event) => {
-                          setTextColor(event.target.value);
-                          if (selectedObjectKind === 'text' && !isAddingText) updateActiveText({ fill: event.target.value });
-                        }}
-                        className="mt-1 h-9 w-full cursor-pointer rounded-lg border border-purple-100 bg-white p-1"
-                      />
-                    </label>
+                  <div className="mt-3 rounded-xl border border-purple-100 bg-white/80 p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-bold text-gray-600">글자색</p>
+                        <p className="mt-0.5 text-[10px] text-gray-400">자주 쓰는 색상을 누르거나 직접 선택하세요.</p>
+                      </div>
+                      <div className="flex items-center gap-2 rounded-full border border-purple-100 bg-white px-2.5 py-1.5">
+                        <span
+                          className="h-5 w-5 rounded-full border border-black/15 shadow-inner"
+                          style={{ backgroundColor: textColor }}
+                        />
+                        <span className="font-mono text-[10px] font-bold uppercase text-gray-500">{textColor}</span>
+                      </div>
+                    </div>
 
-                    <p className="pb-1 text-[11px] leading-5 text-gray-500">
+                    <div className="mt-3 grid grid-cols-6 gap-2 sm:grid-cols-12">
+                      {TEXT_COLOR_PRESETS.map((preset) => {
+                        const isSelected = textColor.toUpperCase() === preset.value.toUpperCase();
+                        return (
+                          <button
+                            key={preset.value}
+                            type="button"
+                            onClick={() => {
+                              setTextColor(preset.value);
+                              if (selectedObjectKind === 'text' && !isAddingText) {
+                                updateActiveText({ fill: preset.value });
+                              }
+                            }}
+                            className={`relative mx-auto h-9 w-9 rounded-full border shadow-sm transition active:scale-90 ${
+                              isSelected
+                                ? 'border-violet-500 ring-2 ring-violet-200 ring-offset-2'
+                                : 'border-black/10 hover:scale-105'
+                            }`}
+                            style={{ backgroundColor: preset.value }}
+                            aria-label={`${preset.label} 선택`}
+                            title={preset.label}
+                          >
+                            {isSelected && (
+                              <span
+                                className={`absolute inset-0 flex items-center justify-center text-sm font-black ${
+                                  preset.value === '#FFFFFF' || preset.value === '#FACC15'
+                                    ? 'text-gray-800'
+                                    : 'text-white'
+                                }`}
+                              >
+                                ✓
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-violet-50/60 px-3 py-2.5">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-black text-purple-950">사용자 지정 색상</p>
+                        <p className="truncate text-[10px] text-gray-500">원하는 색을 직접 선택할 수 있습니다.</p>
+                      </div>
+
+                      <label className="relative flex h-10 w-16 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-violet-200 bg-white shadow-sm">
+                        <span
+                          className="absolute inset-1 rounded-lg border border-black/10"
+                          style={{ backgroundColor: textColor }}
+                        />
+                        <span className="relative rounded-md bg-black/45 px-2 py-1 text-[10px] font-black text-white backdrop-blur">선택</span>
+                        <input
+                          type="color"
+                          value={textColor}
+                          onChange={(event) => {
+                            const nextColor = event.target.value.toUpperCase();
+                            setTextColor(nextColor);
+                            if (selectedObjectKind === 'text' && !isAddingText) {
+                              updateActiveText({ fill: nextColor });
+                            }
+                          }}
+                          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                          aria-label="사용자 지정 글자색 선택"
+                        />
+                      </label>
+                    </div>
+
+                    <p className="mt-3 text-[11px] leading-5 text-gray-500">
                       글자 크기는 캔버스에서 텍스트를 선택한 뒤 모서리 원을 드래그해 조절하세요.
                     </p>
                   </div>
@@ -1386,17 +2018,37 @@ export default function KeycapCustomEditorPage() {
                   <span>시안 접수와 고객 확인을 위한 개인정보 수집 및 이용에 동의합니다.</span>
                 </label>
 
-                <button type="submit" className="w-full rounded-xl bg-violet-500 py-3.5 text-sm font-black text-white shadow-md shadow-violet-100 hover:bg-violet-600">
-                  테스트 시안 접수
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full rounded-xl bg-violet-500 py-3.5 text-sm font-black text-white shadow-md shadow-violet-100 transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:bg-purple-300 disabled:shadow-none"
+                >
+                  {isSubmitting
+                    ? '시안 접수 중...'
+                    : '시안 접수하기'}
                 </button>
                 <p className="text-center text-[10px] leading-4 text-gray-400">
-                  현재 버전은 Supabase에 전송하지 않으며 브라우저 콘솔에서 데이터 구조를 확인할 수 있습니다.
+                  시안 이미지 업로드가 완료된 후 접수정보가 저장됩니다.
                 </p>
               </div>
             </form>
           </section>
         )}
       </div>
+      {isSubmitting && (
+  <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/65 px-4 text-center backdrop-blur-sm">
+    <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/30 border-t-white" />
+
+    <p className="mt-4 text-lg font-black text-white">
+      시안을 접수하고 있습니다
+    </p>
+
+    <p className="mt-1 text-xs text-white/70">
+      이미지 업로드가 완료될 때까지 화면을 닫지 마세요.
+    </p>
+  </div>
+)}
     </main>
   );
+  
 }
