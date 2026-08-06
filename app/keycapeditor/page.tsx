@@ -30,7 +30,7 @@ const KEYCAP_COLORS: Array<{
   hex: string;
   text: string;
 }> = [
-  { key: 'white', label: '화이트', hex: '#F7F7F4', text: '#111827' },
+  { key: 'white', label: '화이트', hex: '#FEFEFE', text: '#111827' },
   { key: 'black', label: '블랙', hex: '#222326', text: '#FFFFFF' },
   { key: 'gray', label: '그레이', hex: '#9A9CA1', text: '#111827' },
   { key: 'navy', label: '네이비', hex: '#26344A', text: '#FFFFFF' },
@@ -203,6 +203,18 @@ export default function KeycapCustomEditorPage() {
     () => KEYCAP_COLORS.find((color) => color.key === selectedColor) ?? KEYCAP_COLORS[0],
     [selectedColor],
   );
+
+  const selectedSpecRef = useRef(selectedSpec);
+const selectedColorSpecRef = useRef(selectedColorSpec);
+
+useEffect(() => {
+  selectedSpecRef.current = selectedSpec;
+}, [selectedSpec]);
+
+useEffect(() => {
+  selectedColorSpecRef.current = selectedColorSpec;
+}, [selectedColorSpec]);
+
 
   const updateObjectCounts = useCallback(() => {
     const canvas = canvasRef.current;
@@ -603,21 +615,55 @@ export default function KeycapCustomEditorPage() {
   );
 
 
+  // const updateCanvasSize = useCallback(() => {
+  //   const canvas = canvasRef.current;
+  //   const container = canvasContainerRef.current;
+  //   if (!canvas || !container) return;
+  //   const width = Math.max(280, Math.floor(container.clientWidth));
+  //   const height = Math.max(360, Math.min(520, Math.round(width * 0.92)));
+  //   canvas.setDimensions({ width, height });
+  //   canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+  //   setCanvasZoom(1);
+  //   isPanModeRef.current = false;
+  //   setIsPanMode(false);
+  //   canvas.selection = true;
+  //   setDesignObjectsInteractive(true);
+  //   drawGuides(canvas, selectedSpec.rows, selectedSpec.cols, selectedColorSpec.hex);
+  // }, [drawGuides, selectedColorSpec.hex, selectedSpec.cols, selectedSpec.rows, setDesignObjectsInteractive]);
   const updateCanvasSize = useCallback(() => {
     const canvas = canvasRef.current;
     const container = canvasContainerRef.current;
+
     if (!canvas || !container) return;
-    const width = Math.max(280, Math.floor(container.clientWidth));
-    const height = Math.max(360, Math.min(520, Math.round(width * 0.92)));
-    canvas.setDimensions({ width, height });
-    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    setCanvasZoom(1);
-    isPanModeRef.current = false;
-    setIsPanMode(false);
-    canvas.selection = true;
-    setDesignObjectsInteractive(true);
-    drawGuides(canvas, selectedSpec.rows, selectedSpec.cols, selectedColorSpec.hex);
-  }, [drawGuides, selectedColorSpec.hex, selectedSpec.cols, selectedSpec.rows, setDesignObjectsInteractive]);
+
+    const width = Math.max(
+      280,
+      Math.floor(container.clientWidth),
+    );
+
+    const height = Math.max(
+      360,
+      Math.min(520, Math.round(width * 0.92)),
+    );
+
+    const currentSpec = selectedSpecRef.current;
+    const currentColor = selectedColorSpecRef.current;
+
+    canvas.setDimensions({
+      width,
+      height,
+    });
+
+    drawGuides(
+      canvas,
+      currentSpec.rows,
+      currentSpec.cols,
+      currentColor.hex,
+    );
+
+    arrangeGuideLayers(canvas);
+    canvas.requestRenderAll();
+  }, [arrangeGuideLayers, drawGuides]);
 
   useEffect(() => {
     if (!canvasElementRef.current || !canvasContainerRef.current) return;
@@ -626,7 +672,7 @@ export default function KeycapCustomEditorPage() {
     const canvas = new fabric.Canvas(canvasElementRef.current, {
       width,
       height: Math.max(360, Math.min(520, Math.round(width * 0.92))),
-      backgroundColor: '#F8F7FB',
+      backgroundColor: '#FFFFFF',
       preserveObjectStacking: true,
       selection: true,
       allowTouchScrolling: true,
@@ -825,19 +871,50 @@ export default function KeycapCustomEditorPage() {
     [arrangeGuideLayers, invalidatePreview, resetHistory, syncSelectionState, updateObjectCounts],
   );
 
-  const requestLayoutChange = (nextLayout: LayoutKey) => {
-    if (nextLayout === selectedLayout) return;
-    if (designObjectCount > 0) {
-      const confirmed = window.confirm(
-        '배열을 변경하면 현재 편집 중인 이미지와 텍스트가 모두 초기화됩니다. 배열을 변경할까요?',
-      );
-      if (!confirmed) return;
-      clearAllDesignObjects(false);
-    }
-    resetEditorViewport();
-    setSelectedLayout(nextLayout);
-    setTimeout(() => resetHistory(), 0);
-  };
+  // const requestLayoutChange = (nextLayout: LayoutKey) => {
+  //   if (nextLayout === selectedLayout) return;
+  //   if (designObjectCount > 0) {
+  //     const confirmed = window.confirm(
+  //       '배열을 변경하면 현재 편집 중인 이미지와 텍스트가 모두 초기화됩니다. 배열을 변경할까요?',
+  //     );
+  //     if (!confirmed) return;
+  //     clearAllDesignObjects(false);
+  //   }
+  //   resetEditorViewport();
+  //   setSelectedLayout(nextLayout);
+  //   setTimeout(() => resetHistory(), 0);
+  // };
+  const requestLayoutChange = (
+  nextLayout: LayoutKey,
+) => {
+  if (nextLayout === selectedLayout) return;
+
+  if (designObjectCount > 0) {
+    const confirmed = window.confirm(
+      '배열을 변경하면 현재 편집 중인 이미지와 텍스트가 모두 초기화됩니다. 배열을 변경할까요?',
+    );
+
+    if (!confirmed) return;
+
+    clearAllDesignObjects(false);
+  }
+
+  const nextSpec =
+    LAYOUTS.find(
+      (layout) => layout.key === nextLayout,
+    ) ?? LAYOUTS[0];
+
+  // ResizeObserver가 중간에 실행돼도
+  // 새로운 배열을 사용하도록 먼저 갱신
+  selectedSpecRef.current = nextSpec;
+
+  resetEditorViewport();
+  setSelectedLayout(nextLayout);
+
+  setTimeout(() => {
+    resetHistory();
+  }, 0);
+};
 
   const convertHeicIfNeeded = async (file: File): Promise<Blob> => {
     const isHeic = /\.(heic|heif)$/i.test(file.name) || /image\/(heic|heif)/i.test(file.type);
@@ -1073,8 +1150,22 @@ export default function KeycapCustomEditorPage() {
       ? ([...canvas.viewportTransform] as fabric.TMat2D)
       : ([1, 0, 0, 1, 0, 0] as fabric.TMat2D);
 
+
+    const previousBackgroundColor = canvas.backgroundColor;
+
+    // 출력에는 편집용 배경색이 포함되지 않도록 제거
+    canvas.backgroundColor = 'rgba(0,0,0,0)';
+
+    canvas.setViewportTransform([
+      1, 0,
+      0, 1,
+      0, 0,
+    ]);
+
+    
     canvas.discardActiveObject();
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+    
     const guides = canvas.getObjects().filter(isGuideObject);
     guides.forEach((obj) => obj.set({ visible: false }));
 
@@ -1102,10 +1193,17 @@ export default function KeycapCustomEditorPage() {
       canvas.requestRenderAll();
       return;
     }
-    context.fillStyle = selectedColorSpec.hex;
-    context.fillRect(0, 0, targetWidth, targetHeight);
+    // 저장될 이미지에 키캡색 포함
+    // context.fillStyle = selectedColorSpec.hex;
+    // context.fillRect(0, 0, targetWidth, targetHeight);
     context.drawImage(cropped, 0, 0, targetWidth, targetHeight);
     const dataUrl = outputCanvas.toDataURL('image/png', 1);
+
+
+    // 편집 화면 복원
+    canvas.backgroundColor = previousBackgroundColor;
+    canvas.setViewportTransform(previousViewport);
+
 
     guides.forEach((obj) => obj.set({ visible: true }));
     canvas.setViewportTransform(previousViewport);
@@ -1374,6 +1472,19 @@ export default function KeycapCustomEditorPage() {
   const [isSubmitting, setIsSubmitting] =
   useState(false);
 
+  const changeKeycapColor = (
+  nextColor: KeycapColorKey,
+) => {
+  const nextColorSpec =
+    KEYCAP_COLORS.find(
+      (color) => color.key === nextColor,
+    ) ?? KEYCAP_COLORS[0];
+
+  selectedColorSpecRef.current =
+    nextColorSpec;
+
+  setSelectedColor(nextColor);
+};
 
   const toolButton =
     'rounded-xl border border-purple-100 bg-white px-3 py-2.5 text-xs font-bold text-purple-950 transition hover:bg-purple-50 disabled:cursor-not-allowed disabled:opacity-35';
@@ -1475,7 +1586,10 @@ export default function KeycapCustomEditorPage() {
                   <button
                     type="button"
                     key={color.key}
-                    onClick={() => setSelectedColor(color.key)}
+                    // onClick={() => setSelectedColor(color.key)}
+                    onClick={() =>
+                      changeKeycapColor(color.key)
+                    }
                     className={`rounded-2xl border p-2 transition ${
                       selectedColor === color.key ? 'border-violet-500 ring-2 ring-violet-100' : 'border-purple-100'
                     }`}
