@@ -43,6 +43,17 @@ const FONT_OPTIONS = [
   { key: 'BinggreIi', label: '개성체', sample: '개성있는 글씨', weight: 700 },
 ] as const;
 
+const SMART_STORE_PRODUCT_URL =
+'https://mkt.shopping.naver.com/link/69e9caa8d02ed2467ac4ce01'; //테스트링크
+
+type SubmittedDesign = {
+  orderId: string | null;
+  layout: LayoutKey;
+  color: KeycapColorKey;
+  orderType: '주문전' | '주문완료';
+  previewImageUrl: string;
+};
+
 const TEXT_COLOR_PRESETS = [
   { label: '검정', value: '#111111' },
   { label: '흰색', value: '#FFFFFF' },
@@ -904,8 +915,6 @@ useEffect(() => {
       (layout) => layout.key === nextLayout,
     ) ?? LAYOUTS[0];
 
-  // ResizeObserver가 중간에 실행돼도
-  // 새로운 배열을 사용하도록 먼저 갱신
   selectedSpecRef.current = nextSpec;
 
   resetEditorViewport();
@@ -915,6 +924,7 @@ useEffect(() => {
     resetHistory();
   }, 0);
 };
+
 
   const convertHeicIfNeeded = async (file: File): Promise<Blob> => {
     const isHeic = /\.(heic|heif)$/i.test(file.name) || /image\/(heic|heif)/i.test(file.type);
@@ -1215,6 +1225,31 @@ useEffect(() => {
     setTimeout(() => orderFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
   };
 
+
+  const orderCompleteRef = useRef<HTMLDivElement>(null);
+  const [submittedDesign, setSubmittedDesign] =
+  useState<SubmittedDesign | null>(null);
+
+  const getLayoutLabel = (layoutKey: LayoutKey) => {
+  const layout = LAYOUTS.find(
+    (item) => item.key === layoutKey,
+  );
+
+  return layout
+    ? `${layout.key} · ${layout.label}`
+    : layoutKey;
+};
+
+const getColorLabel = (
+  colorKey: KeycapColorKey,
+) => {
+  return (
+    KEYCAP_COLORS.find(
+      (item) => item.key === colorKey,
+    )?.label ?? colorKey
+  );
+};
+
  const handleOrderSubmit = async (
     event: React.FormEvent<HTMLFormElement>,
   ) => {
@@ -1406,6 +1441,21 @@ useEffect(() => {
       /*
       * 5. 성공 처리
       */
+     const completedDesign: SubmittedDesign = {
+        orderId:
+          typeof result.orderId === 'string'
+            ? result.orderId
+            : null,
+
+        layout: selectedLayout,
+        color: selectedColor,
+        orderType: orderData.orderType,
+        previewImageUrl,
+      };
+
+      
+
+
       setNotice(
         '시안 접수가 완료되었습니다. 확인 후 연락드리겠습니다.',
       );
@@ -1422,15 +1472,16 @@ useEffect(() => {
         },
       );
 
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
+      // window.scrollTo({
+      //   top: 0,
+      //   behavior: 'smooth',
+      // });
 
       /*
       * 중복 접수를 막기 위해
       * 주문 폼을 닫을 수도 있습니다.
       */
+     setSubmittedDesign(completedDesign);
       setShowOrderForm(false);
 
       // 필요하면 입력값 초기화
@@ -1444,7 +1495,16 @@ useEffect(() => {
         privacyAgreed: false,
       });
 
-      setPreviewImageUrl(null);
+
+      // setPreviewImageUrl(null);
+      setTimeout(() => {
+      orderCompleteRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 100);
+
+
     } catch (error: unknown) {
       console.error(
         '시안 접수 오류:',
@@ -2026,16 +2086,19 @@ useEffect(() => {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-bold text-violet-500">FINAL PREVIEW</p>
-                  <h2 className="mt-1 text-xl font-black text-purple-950">최종 시안 확인</h2>
+                  <h2 className="mt-1 text-xl font-black text-purple-950">최종 각인할 이미지 확인</h2>
                 </div>
                 <button type="button" onClick={downloadPreview} className={toolButton}>PNG 내려받기</button>
               </div>
               <div className="mt-4 overflow-hidden rounded-2xl border border-purple-100 bg-gray-100 p-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={previewImageUrl} alt="완성된 키캡 시안" className="mx-auto max-h-[520px] w-auto max-w-full object-contain shadow-sm" />
+                <img src={previewImageUrl} alt="완성된 각인 이미지" className="mx-auto max-h-[520px] w-auto max-w-full object-contain shadow-sm" />
               </div>
               <p className="mt-3 text-xs leading-5 text-gray-500">
                 출력 크기: {selectedSpec.cols * UNIT_PIXELS}px × {selectedSpec.rows * UNIT_PIXELS}px · PNG
+              </p>
+              <p className="mt-1 text-xs leading-5 text-gray-500">
+                해당 이미지로 실제 각인이 진행됩니다. 배경제거나 전문가의 손길이 필요한 경우 디자인 편집 요청을 해주셔야 합니다.
               </p>
             </div>
 
@@ -2044,7 +2107,7 @@ useEffect(() => {
               <h2 className="mt-1 text-xl font-black text-purple-950">주문자 정보 입력</h2>
 
               <div className="mt-5 space-y-4">
-                <label className="block text-sm font-bold text-gray-700">
+                {/* <label className="block text-sm font-bold text-gray-700">
                   접수 구분
                   <div className="mt-2 grid grid-cols-2 gap-2">
                     {(['주문전', '주문완료'] as const).map((type) => (
@@ -2060,7 +2123,7 @@ useEffect(() => {
                       </button>
                     ))}
                   </div>
-                </label>
+                </label> */}
 
                 <label className="block text-sm font-bold text-gray-700">
                   주문자 성함
@@ -2069,7 +2132,7 @@ useEffect(() => {
                     maxLength={15}
                     value={orderData.customerName}
                     onChange={(event) => setOrderData((prev) => ({ ...prev, customerName: event.target.value }))}
-                    placeholder="홍길동"
+                    placeholder="홍길동 - 주문자 또는 수령인 이름을 입력해주세요"
                     className="mt-1.5 w-full rounded-xl border border-purple-100 px-3 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                   />
                 </label>
@@ -2091,7 +2154,7 @@ useEffect(() => {
                   />
                 </label>
 
-                <label className="block text-sm font-bold text-gray-700">
+                {/* <label className="block text-sm font-bold text-gray-700">
                   주문번호 <span className="text-xs font-normal text-gray-400">(주문완료 고객)</span>
                   <input
                     value={orderData.orderNumber}
@@ -2099,24 +2162,56 @@ useEffect(() => {
                     placeholder="스마트스토어 주문번호"
                     className="mt-1.5 w-full rounded-xl border border-purple-100 px-3 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                   />
-                </label>
+                </label> */}
 
                 <label className="block text-sm font-bold text-gray-700">
-                  이벤트 코드 <span className="text-xs font-normal text-gray-400">(선택 / 최대 8자)</span>
+                  이벤트 코드
+                  <span className="text-xs font-normal text-gray-400">
+                    {' '}
+                    (선택 / 영문·숫자 / 최대 8자)
+                  </span>
+
                   <input
                     maxLength={8}
                     value={orderData.eventCode}
-                    onChange={(event) => setOrderData((prev) => ({ ...prev, eventCode: event.target.value }))}
-                    className="mt-1.5 w-full rounded-xl border border-purple-100 px-3 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                    onChange={(event) => {
+                      const value = event.target.value
+                        .toUpperCase()
+                        .replace(/[^A-Z0-9]/g, '')
+                        .slice(0, 8);
+
+                      setOrderData((prev) => ({
+                        ...prev,
+                        eventCode: value,
+                      }));
+                    }}
+                    placeholder="예: EVENT01"
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    className="mt-1.5 w-full rounded-xl border border-purple-100 px-3 py-3 text-sm uppercase outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                   />
                 </label>
 
                 <label className="block text-sm font-bold text-gray-700">
-                  요청사항
+                  <span className="flex items-center justify-between gap-3">
+                    <span>요청사항</span>
+
+                    <span className="text-xs font-normal text-gray-400">
+                      {orderData.requestMessage.length}/80
+                    </span>
+                  </span>
+
                   <textarea
                     rows={4}
+                    maxLength={80}
                     value={orderData.requestMessage}
-                    onChange={(event) => setOrderData((prev) => ({ ...prev, requestMessage: event.target.value }))}
+                    onChange={(event) =>
+                      setOrderData((prev) => ({
+                        ...prev,
+                        requestMessage: event.target.value.slice(0, 80),
+                      }))
+                    }
                     placeholder="제작 시 참고할 내용을 입력해 주세요."
                     className="mt-1.5 w-full resize-none rounded-xl border border-purple-100 px-3 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
                   />
@@ -2149,20 +2244,101 @@ useEffect(() => {
           </section>
         )}
       </div>
+      {submittedDesign && (
+        <section
+          ref={orderCompleteRef}
+          className="scroll-mt-6"
+        >
+          <div className="mx-auto max-w-2xl overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-lg">
+            <div className="bg-emerald-50 px-5 py-7 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-2xl font-black text-white">
+                ✓
+              </div>
+
+              <h2 className="mt-4 text-2xl font-black text-gray-950">
+                시안 접수가 완료되었습니다
+              </h2>
+
+              <p className="mt-2 text-sm leading-6 text-gray-600">
+                아래 옵션을 확인한 뒤 스마트스토어에서 주문을
+                완료해 주세요.
+              </p>
+            </div>
+
+            <div className="space-y-5 p-5">
+              <div className="overflow-hidden rounded-2xl border border-purple-100 bg-gray-50 p-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={submittedDesign.previewImageUrl}
+                  alt="접수한 키캡 시안"
+                  className="mx-auto max-h-[280px] max-w-full object-contain"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 rounded-2xl border border-purple-100 bg-[#fcfbff] p-4">
+                <div className="rounded-xl bg-white p-4">
+                  <p className="text-xs text-gray-400">
+                    키캡 배열
+                  </p>
+                  <p className="mt-1 font-black text-purple-950">
+                    {getLayoutLabel(submittedDesign.layout)}
+                  </p>
+                </div>
+
+                <div className="rounded-xl bg-white p-4">
+                  <p className="text-xs text-gray-400">
+                    키캡 색상
+                  </p>
+                  <p className="mt-1 font-black text-purple-950">
+                    {getColorLabel(submittedDesign.color)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950">
+                스마트스토어에서도 위 시안과 동일한 배열과 키캡
+                색상을 선택해 주문해 주세요.
+              </div>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-black text-amber-950">
+                  주문 전 반드시 확인해 주세요
+                </p>
+
+                <p className="mt-2 text-xs leading-5 text-amber-900">
+                  실제 제작은 스마트스토어에서 최종 선택한 옵션을
+                  기준으로 진행됩니다. 시안과 다른 옵션을 선택하면
+                  스마트스토어 주문 옵션대로 제작되므로 신중하게
+                  확인해 주세요.
+                </p>
+              </div>
+
+              <a
+                href={SMART_STORE_PRODUCT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full items-center justify-center rounded-2xl bg-[#03C75A] px-4 py-4 text-base font-black text-white"
+              >
+                스마트스토어에서 주문 완료하기
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
       {isSubmitting && (
-  <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/65 px-4 text-center backdrop-blur-sm">
-    <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/30 border-t-white" />
+      <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-black/65 px-4 text-center backdrop-blur-sm">
+        <div className="h-12 w-12 animate-spin rounded-full border-4 border-white/30 border-t-white" />
 
-    <p className="mt-4 text-lg font-black text-white">
-      시안을 접수하고 있습니다
-    </p>
+        <p className="mt-4 text-lg font-black text-white">
+          시안을 접수하고 있습니다
+        </p>
 
-    <p className="mt-1 text-xs text-white/70">
-      이미지 업로드가 완료될 때까지 화면을 닫지 마세요.
-    </p>
-  </div>
-)}
+        <p className="mt-1 text-xs text-white/70">
+          이미지 업로드가 완료될 때까지 화면을 닫지 마세요.
+        </p>
+      </div>
+    )}
     </main>
   );
-  
+
 }
