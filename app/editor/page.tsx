@@ -68,6 +68,14 @@ const BOARD_COLORS = [
   },
 ];
 
+const SMART_STORE_PRODUCT_URL =
+  'https://mkt.shopping.naver.com/link/69e9caa8d02ed2467ac4ce01'; // 실제 상품 링크로 변경 가능
+
+type SubmittedOrder = {
+  size: string;
+  boardColor: string;
+  previewImageUrl: string;
+};
 
 export default function Editor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -244,7 +252,9 @@ export default function Editor() {
 
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [submittedOrder, setSubmittedOrder] = useState<SubmittedOrder | null>(null);
   const orderFormRef = useRef<HTMLDivElement>(null);
+  const orderCompleteRef = useRef<HTMLDivElement>(null);
 
   const handleCanvasObjectModified = () => {
     setShowOrderForm(false);
@@ -575,9 +585,21 @@ export default function Editor() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error);
 
-      alert('주문 제작 신청이 성공적으로 완료되었습니다!');
-      setPreviewImageUrl(null); 
-      window.location.reload();
+      setSubmittedOrder({
+        size: selectedSize,
+        boardColor: orderData.boardColor,
+        previewImageUrl: currentPreviewUrl,
+      });
+
+      setShowOrderForm(false);
+      setIsSubmitting(false);
+
+      setTimeout(() => {
+        orderCompleteRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }, 100);
 
     } catch (error: unknown) {
       console.error('에러 발생:', error);
@@ -1066,6 +1088,136 @@ export default function Editor() {
               </div>
             </div>
           </div>
+        )}
+
+        {submittedOrder && (
+          <section
+            ref={orderCompleteRef}
+            className="scroll-mt-6 overflow-hidden rounded-3xl border border-emerald-200 bg-white shadow-lg shadow-emerald-100/50"
+          >
+            <div className="bg-gradient-to-br from-emerald-50 to-white px-5 py-7 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-2xl font-black text-white shadow-md shadow-emerald-200">
+                ✓
+              </div>
+
+              <h2 className="mt-4 text-2xl font-black text-gray-950">
+                시안 접수가 완료되었습니다
+              </h2>
+
+              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-gray-600">
+                작성하신 시안이 정상적으로 저장되었습니다. 아래 옵션을 확인한 뒤
+                스마트스토어에서 주문을 완료해 주세요.
+              </p>
+            </div>
+
+            <div className="space-y-5 p-5">
+              <div className="overflow-hidden rounded-2xl border border-purple-100 bg-gray-50 p-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={submittedOrder.previewImageUrl}
+                  alt="접수한 포토 키캡 시안"
+                  className="mx-auto max-h-[320px] w-auto max-w-full object-contain"
+                />
+              </div>
+
+              <div className="rounded-2xl border border-purple-100 bg-[#fcfbff] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black text-violet-500">선택한 시안 옵션</p>
+                    <p className="mt-1 text-xs leading-5 text-gray-500">
+                      스마트스토어에서도 아래와 동일하게 선택해 주세요.
+                    </p>
+                  </div>
+
+                  <span className="shrink-0 rounded-full bg-violet-100 px-3 py-1 text-[11px] font-black text-violet-700">
+                    확인 필수
+                  </span>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl border border-purple-100 bg-white p-4">
+                    <p className="text-[11px] font-bold text-gray-400">사이즈</p>
+                    <p className="mt-1 text-base font-black text-purple-950">
+                      {submittedOrder.size}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl border border-purple-100 bg-white p-4">
+                    <p className="text-[11px] font-bold text-gray-400">보드 색상</p>
+                    <p className="mt-1 text-base font-black text-purple-950">
+                      {submittedOrder.boardColor}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                <p className="text-sm font-black text-blue-950">주문 안내</p>
+                <p className="mt-2 text-sm leading-6 text-blue-900">
+                  아래 버튼을 눌러 스마트스토어로 이동한 뒤, 방금 접수한 시안과
+                  동일한 <strong className="font-black">사이즈와 보드 색상</strong>을
+                  선택해 주문해 주세요.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <div className="flex items-start gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-400 text-sm font-black text-white">
+                    !
+                  </span>
+
+                  <div>
+                    <p className="text-sm font-black text-amber-950">
+                      주문 전 반드시 확인해 주세요
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-amber-900">
+                      실제 제작은 시안 접수 시 선택한 옵션이 아니라
+                      <strong className="font-black"> 스마트스토어에서 최종 선택한 옵션</strong>을
+                      기준으로 진행됩니다.
+                    </p>
+                    <p className="mt-2 text-xs leading-5 text-amber-900">
+                      시안과 다른 옵션을 선택하면 스마트스토어 주문 옵션대로 제작되므로,
+                      결제 전에 사이즈와 색상을 다시 한번 확인해 주세요.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <a
+                href={SMART_STORE_PRODUCT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#03C75A] px-4 py-4 text-base font-black text-white shadow-lg shadow-emerald-100 transition hover:bg-[#02b351] active:scale-[0.99]"
+              >
+                <span aria-hidden="true">🛒</span>
+                스마트스토어에서 주문 완료하기
+              </a>
+
+              <p className="text-center text-[11px] leading-5 text-gray-400">
+                버튼을 누르면 스마트스토어 상품 페이지가 새 창으로 열립니다.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSubmittedOrder(null);
+                  setPreviewImageUrl(null);
+                  setShowOrderForm(false);
+                  setOrderData({
+                    orderType: '주문전',
+                    customerName: '',
+                    contact: '',
+                    boardColor: '블랙',
+                    eventCode: '',
+                  });
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                className="w-full rounded-xl border border-purple-100 bg-white py-3 text-sm font-bold text-gray-500 transition hover:bg-purple-50 hover:text-purple-800"
+              >
+                새로운 시안 만들기
+              </button>
+            </div>
+          </section>
         )}
       </div>
     </div>
