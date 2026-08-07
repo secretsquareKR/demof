@@ -1,5 +1,6 @@
 'use client';
 
+
 import * as fabric from 'fabric';
 import { useEffect, useRef, useState } from 'react';
 
@@ -1146,7 +1147,7 @@ export default function Editor() {
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div className="rounded-xl border border-purple-100 bg-white p-4">
-                    <p className="text-[11px] font-bold text-gray-400">사이즈</p>
+                    <p className="text-[11px] font-bold text-gray-400">배열</p>
                     <p className="mt-1 text-base font-black text-purple-950">
                       {submittedOrder.size}
                     </p>
@@ -1231,5 +1232,9 @@ export default function Editor() {
         )}
       </div>
     </div>
+    
   );
+
+
+
 }

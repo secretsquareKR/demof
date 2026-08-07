@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import styles from "./page.module.css";
 
@@ -176,8 +175,8 @@ export default function HomePage() {
     <main className={styles.page}>
       
       <div className={styles.container}>
-        <div className={styles.looImage}>
-        <Link href="/" >
+        {/* <div className={styles.looImage}> */}
+        {/* <Link href="/" >
             <Image
             src="/images/dimof-logo.png"
             alt="디모프 로고"
@@ -185,8 +184,8 @@ export default function HomePage() {
             height={30}
             priority
           />
-        </Link>
-      </div>
+        </Link> */}
+      {/* </div> */}
         {/* <header className={styles.header}> */}
           {/* <Link href="/" className={styles.logoArea}>
             <Image
@@ -231,7 +230,7 @@ export default function HomePage() {
               세상에 하나뿐인 굿즈를 제작해보세요.
             </p>
 
-            <Link href="/custom" className={styles.heroButton}>
+            <Link href="/items" className={styles.heroButton}>
               굿즈 주문제작 시작하기
               <ArrowIcon />
             </Link>
@@ -353,18 +352,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <footer className={styles.footer}>
-          <div className={styles.footerLogo}>디모프</div>
-          <p>일상 속 작은 즐거움을 만드는 커스텀 굿즈 브랜드</p>
 
-          <div className={styles.footerLinks}>
-            {/* <Link href="/terms">이용약관</Link>
-            <Link href="/privacy">개인정보처리방침</Link> */}
-            <Link href="/support">고객센터</Link>
-          </div>
-
-          <span>© 2026 DIMOF. All rights reserved.</span>
-        </footer>
       </div>
     </main>
   );
