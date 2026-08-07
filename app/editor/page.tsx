@@ -69,7 +69,7 @@ const BOARD_COLORS = [
 ];
 
 const SMART_STORE_PRODUCT_URL =
-  'https://mkt.shopping.naver.com/link/69e9caa8d02ed2467ac4ce01'; // 실제 상품 링크로 변경 가능
+  'https://mkt.shopping.naver.com/link/69fc7a1418984e7c7543e47e'; // 실제 상품 링크로 변경 가능
 
 type SubmittedOrder = {
   size: string;
@@ -454,14 +454,14 @@ export default function Editor() {
     eventCode: '',
   });
 
-  useEffect(() => {
-  if (selectedSize !== '3x3' && orderData.boardColor === '투명') {
-    setOrderData((prev) => ({
-      ...prev,
-      boardColor: '블랙',
-    }));
-  }
-}, [selectedSize, orderData.boardColor]);
+//   useEffect(() => {
+//   if (selectedSize !== '3x3' && orderData.boardColor === '투명') {
+//     setOrderData((prev) => ({
+//       ...prev,
+//       boardColor: '블랙',
+//     }));
+//   }
+// }, [selectedSize, orderData.boardColor]);
 
   const handleDesignComplete = () => {
     const canvas = fabricCanvas.current;
@@ -740,6 +740,16 @@ export default function Editor() {
                 key={size.key}
                 onClick={() => {
                   setSelectedSize(size.key);
+
+                  setOrderData((prev) => ({
+                    ...prev,
+                    boardColor:
+                      size.key !== '3x3' &&
+                      prev.boardColor === '투명'
+                        ? '블랙'
+                        : prev.boardColor,
+                  }));
+
                   setPreviewImageUrl(null);
                   setShowOrderForm(false);
                 }}
